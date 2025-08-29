@@ -1,8 +1,8 @@
 import React, { useState } from 'react'
 import { X, Loader2, AlertCircle, User, Mail, Building, MapPin, Briefcase, Shield } from 'lucide-react'
 import { usuariosService, type CreateUsuarioRequest } from '../../../services'
-import { SelectSedes, SelectAreas, SelectCargos } from '../selects'
 import { Button } from '../base/button'
+import { SelectRoles } from '../selects/SelectRoles'
 
 interface ModalAddUserProps {
   open: boolean
@@ -17,9 +17,7 @@ export function ModalAddUser({ open, onClose, onSave }: ModalAddUserProps) {
     nombre: '',
     apellido: '',
     autenticacion: 'ldap',
-    sedeId: 0,
-    areaId: 0,
-    cargoId: 0
+    rolId: undefined
   })
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -31,9 +29,7 @@ export function ModalAddUser({ open, onClose, onSave }: ModalAddUserProps) {
       nombre: '',
       apellido: '',
       autenticacion: 'ldap',
-      sedeId: 0,
-      areaId: 0,
-      cargoId: 0
+      rolId: undefined
     })
     setError(null)
   }
@@ -47,10 +43,7 @@ export function ModalAddUser({ open, onClose, onSave }: ModalAddUserProps) {
       return
     }
 
-    if (!formData.sedeId || !formData.areaId || !formData.cargoId) {
-      setError('Debe seleccionar sede, área y cargo')
-      return
-    }
+    // Removed validation for sedeId, areaId, cargoId as these fields no longer exist
 
     try {
       setIsLoading(true)
@@ -73,7 +66,7 @@ export function ModalAddUser({ open, onClose, onSave }: ModalAddUserProps) {
   const handleChange = (field: keyof CreateUsuarioRequest, value: any) => {
     setFormData(prev => ({
       ...prev,
-      [field]: value === '' ? (field === 'sedeId' || field === 'areaId' || field === 'cargoId' ? 0 : '') : value
+      [field]: value === '' ? '' : value
     }))
   }
 
@@ -185,55 +178,36 @@ export function ModalAddUser({ open, onClose, onSave }: ModalAddUserProps) {
             </div>
           </div>
 
-          {/* Ubicación y cargo */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                <Building className="w-4 h-4 inline mr-1" />
-                Sede *
-              </label>
-              <SelectSedes
-                value={formData.sedeId}
-                onChange={(value) => handleChange('sedeId', value ? Number(value) : 0)}
-              />
-            </div>
+                     {/* Asignación de Rol */}
+           <div>
+             <label className="block text-sm font-medium text-gray-700 mb-2">
+               <Shield className="w-4 h-4 inline mr-1" />
+               Rol Asignado
+             </label>
+             <SelectRoles
+               value={formData.rolId?.toString() || ''}
+               onChange={(value) => handleChange('rolId', value ? parseInt(value) : undefined)}
+               placeholder="Seleccionar rol..."
+               className="w-full"
+             />
+             <p className="text-xs text-gray-500 mt-1">
+               Asigna un rol para definir los permisos del usuario en el sistema
+             </p>
+           </div>
 
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                <MapPin className="w-4 h-4 inline mr-1" />
-                Área *
-              </label>
-              <SelectAreas
-                value={formData.areaId}
-                onChange={(value) => handleChange('areaId', value ? Number(value) : 0)}
-              />
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                <Briefcase className="w-4 h-4 inline mr-1" />
-                Cargo *
-              </label>
-              <SelectCargos
-                value={formData.cargoId}
-                onChange={(value) => handleChange('cargoId', value ? Number(value) : 0)}
-              />
-            </div>
-          </div>
-
-          {/* Información sobre roles */}
-          <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-            <div className="flex items-center gap-2 mb-2">
-              <Shield className="w-5 h-5 text-blue-600" />
-              <h4 className="font-medium text-blue-900">Sistema de Roles</h4>
-            </div>
-            <p className="text-sm text-blue-800 mb-2">
-              El rol del usuario se asignará automáticamente según el <strong>cargo seleccionado</strong>.
-            </p>
-            <p className="text-xs text-blue-600">
-              💡 Asegúrese de seleccionar el cargo apropiado para asignar los permisos correctos
-            </p>
-          </div>
+           {/* Información sobre roles */}
+           <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+             <div className="flex items-center gap-2 mb-2">
+               <Shield className="w-5 h-5 text-blue-600" />
+               <h4 className="font-medium text-blue-900">Sistema de Roles</h4>
+             </div>
+             <p className="text-sm text-blue-800 mb-2">
+               Los roles definen los permisos que tiene el usuario en cada módulo del sistema.
+             </p>
+             <p className="text-xs text-blue-600">
+               💡 Puede gestionar roles y permisos desde la sección de Roles y Permisos
+             </p>
+           </div>
 
           {/* Autenticación */}
           <div>
@@ -245,7 +219,6 @@ export function ModalAddUser({ open, onClose, onSave }: ModalAddUserProps) {
               onChange={(e) => handleChange('autenticacion', e.target.value as 'ldap' | 'local')}
               className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
             >
-              <option value="ldap">LDAP (Active Directory)</option>
               <option value="local">Local</option>
             </select>
             <p className="text-xs text-gray-500 mt-1">

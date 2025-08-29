@@ -9,9 +9,6 @@ export const API_CONFIG = {
   ENDPOINTS: {
     AUTH: '/auth/login',
     USUARIOS: '/usuarios',
-    SEDES: '/sedes',
-    AREAS: '/areas',
-    CARGOS: '/cargos',
     ROLES: '/roles',
     MODULOS: '/modulos'
   },

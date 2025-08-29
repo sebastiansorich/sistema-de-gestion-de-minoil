@@ -45,15 +45,17 @@ export function ModalEditRol({ open, onClose, rol, onSave }: ModalEditRolProps) 
     const permissionsMap = new Map<number, PermisoRequest>()
     
     // Inicializar permisos existentes
-    rol.permisos.forEach(permiso => {
-      permissionsMap.set(permiso.moduloId, {
-        moduloId: permiso.moduloId,
-        crear: permiso.crear,
-        leer: permiso.leer,
-        actualizar: permiso.actualizar,
-        eliminar: permiso.eliminar
+    if (rol.permisos && rol.permisos.length > 0) {
+      rol.permisos.forEach(permiso => {
+        permissionsMap.set(permiso.moduloId, {
+          moduloId: permiso.moduloId,
+          crear: permiso.crear,
+          leer: permiso.leer,
+          actualizar: permiso.actualizar,
+          eliminar: permiso.eliminar
+        })
       })
-    })
+    }
     
     setPermissions(permissionsMap)
   }
@@ -226,7 +228,7 @@ export function ModalEditRol({ open, onClose, rol, onSave }: ModalEditRolProps) 
               }`}
             >
               <Settings className="w-4 h-4 inline mr-2" />
-              Permisos ({rol.permisos.length} módulos)
+              Permisos ({(rol.permisos?.length || 0)} módulos)
               {hasPermissionChanges && <span className="ml-2 w-2 h-2 bg-yellow-500 rounded-full inline-block"></span>}
             </button>
           </div>
@@ -294,11 +296,11 @@ export function ModalEditRol({ open, onClose, rol, onSave }: ModalEditRolProps) 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4 p-4 bg-gray-50 rounded-lg">
                 <div>
                   <div className="text-sm text-gray-600">Usuarios con este rol</div>
-                  <div className="text-2xl font-semibold text-gray-900">{rol._count.cargos}</div>
+                  <div className="text-2xl font-semibold text-gray-900">{rol._count?.usuarios || 0}</div>
                 </div>
                 <div>
                   <div className="text-sm text-gray-600">Módulos con permisos</div>
-                  <div className="text-2xl font-semibold text-gray-900">{rol._count.permisos}</div>
+                  <div className="text-2xl font-semibold text-gray-900">{rol._count?.permisos || 0}</div>
                 </div>
               </div>
             </form>
@@ -316,7 +318,7 @@ export function ModalEditRol({ open, onClose, rol, onSave }: ModalEditRolProps) 
                   <div className="flex items-center justify-between mb-6">
                     <h3 className="text-lg font-semibold">Permisos por Módulo</h3>
                     <div className="text-sm text-gray-600">
-                      {rol.permisos.length} de {modulos.length} módulos configurados
+                      {(rol.permisos?.length || 0)} de {modulos.length} módulos configurados
                     </div>
                   </div>
 

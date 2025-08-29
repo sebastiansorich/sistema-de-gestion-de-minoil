@@ -10,6 +10,16 @@ export function hasPermission(user: User | null, permission: string | null): boo
   if (!user) return false
   if (!permission) return true // Si no se requiere permiso específico
   
+  console.log(`🔐 Verificando permiso: "${permission}" para usuario: ${user.nombre}`)
+  console.log(`📋 Permisos del usuario:`, user.permisos?.map(p => ({
+    moduloId: p.moduloId,
+    moduloNombre: p.moduloNombre,
+    crear: p.crear,
+    leer: p.leer,
+    actualizar: p.actualizar,
+    eliminar: p.eliminar
+  })))
+  
   // Si no hay permisos configurados aún, denegar acceso
   if (!user.permisos || user.permisos.length === 0) {
     console.warn('⚠️ Usuario sin permisos configurados')
@@ -50,11 +60,14 @@ export function hasPermission(user: User | null, permission: string | null): boo
   }
   
   // Verificar acceso general al módulo por nombre
-  const hasModule = user.permisos.some(p => 
-    p.moduloNombre.toLowerCase().includes(permission.toLowerCase()) ||
-    permission.toLowerCase().includes(p.moduloNombre.toLowerCase())
-  )
+  const hasModule = user.permisos.some(p => {
+    const matches = p.moduloNombre.toLowerCase().includes(permission.toLowerCase()) ||
+                   permission.toLowerCase().includes(p.moduloNombre.toLowerCase())
+    console.log(`🔍 Comparando "${p.moduloNombre}" con "${permission}": ${matches}`)
+    return matches
+  })
   
+  console.log(`✅ Resultado final para permiso "${permission}": ${hasModule}`)
   return hasModule
 }
 

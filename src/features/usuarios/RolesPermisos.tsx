@@ -99,7 +99,7 @@ export default function RolesPermisos() {
   const handleDelete = async (rol: Rol) => {
     setConfirmData({
       title: 'Eliminar Rol',
-      description: `¿Estás seguro de que deseas eliminar el rol "${rol.nombre}"? Esta acción no se puede deshacer y afectará a ${rol._count.cargos} usuarios que tienen este rol asignado.`,
+      description: `¿Estás seguro de que deseas eliminar el rol "${rol.nombre}"? Esta acción no se puede deshacer y afectará a ${rol._count?.usuarios || 0} usuarios que tienen este rol asignado.`,
       operation: 'delete',
       entityName: rol.nombre,
       isLoading: false
@@ -243,7 +243,7 @@ export default function RolesPermisos() {
                     <Users className="w-4 h-4" />
                     <span>Usuarios asignados</span>
                   </div>
-                  <span className="font-medium">{rol._count.cargos}</span>
+                  <span className="font-medium">{rol._count?.usuarios || 0}</span>
                 </div>
                 
                 <div className="flex items-center justify-between text-sm">
@@ -251,7 +251,7 @@ export default function RolesPermisos() {
                     <Package className="w-4 h-4" />
                     <span>Módulos con acceso</span>
                   </div>
-                  <span className="font-medium">{rol._count.permisos}</span>
+                  <span className="font-medium">{rol._count?.permisos || 0}</span>
                 </div>
 
                 <div className="flex items-center justify-between text-sm">
@@ -280,7 +280,7 @@ export default function RolesPermisos() {
                 <div className="mt-4 border-t pt-4">
                   <h4 className="font-medium text-gray-900 mb-3">Permisos por Módulo</h4>
                   <div className="space-y-2">
-                    {rol.permisos.length === 0 ? (
+                    {!rol.permisos || rol.permisos.length === 0 ? (
                       <p className="text-sm text-gray-500 text-center py-2">
                         No hay permisos asignados
                       </p>
@@ -377,7 +377,7 @@ export default function RolesPermisos() {
                 </span>
               </div>
               <div className="text-xs text-gray-500 mt-2">
-                {modulo._count.permisos} roles con acceso
+                {modulo._count?.permisos || 0} roles con acceso
               </div>
             </div>
           ))}

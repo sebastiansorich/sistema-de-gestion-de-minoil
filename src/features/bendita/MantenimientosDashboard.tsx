@@ -13,19 +13,26 @@ import {
   BarChart3,
   RefreshCw,
   Loader2,
-  FileText
+  FileText,
+  Wrench
 } from "lucide-react";
 import { Button } from "../../components/ui";
 import Breadcrumb from "../../components/ui/navigation/Breadcrumb";
 import { mantenimientosService } from "../../services";
+import { useToastContext } from "../../contexts/ToastContext";
+import { ModalVerMantenimiento, ModalEditarMantenimiento } from "../../components/ui/modals";
 import type { DashboardStats, Mantenimiento } from "../../services";
 
 export default function MantenimientosDashboard() {
   const navigate = useNavigate();
+  const { showError, showSuccess } = useToastContext();
   const [stats, setStats] = useState<DashboardStats | null>(null);
   const [recentMantenimientos, setRecentMantenimientos] = useState<Mantenimiento[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [selectedMantenimiento, setSelectedMantenimiento] = useState<Mantenimiento | null>(null);
+  const [isVerModalOpen, setIsVerModalOpen] = useState(false);
+  const [isEditarModalOpen, setIsEditarModalOpen] = useState(false);
 
   useEffect(() => {
     loadDashboardData();
@@ -36,23 +43,90 @@ export default function MantenimientosDashboard() {
       setIsLoading(true);
       setError(null);
       
-      const [statsData, mantenimientosData] = await Promise.all([
-        mantenimientosService.getDashboardStats(),
-        mantenimientosService.getMantenimientos({ limit: 5 })
-      ]);
+      // Obtener datos reales de mantenimientos
+      const mantenimientosData = await mantenimientosService.getMantenimientos({ limit: 100 });
       
-      setStats(statsData);
-      setRecentMantenimientos(mantenimientosData);
+      // Calcular estadísticas basadas en datos reales
+      const statsCalculadas = calcularStatsReales(mantenimientosData);
+      setStats(statsCalculadas);
+      setRecentMantenimientos(mantenimientosData.slice(0, 5)); // Solo los 5 más recientes
     } catch (err) {
       console.error('Error cargando datos del dashboard:', err);
       setError('Error al cargar los datos del dashboard');
+      showError(
+        'Error al cargar datos',
+        'No se pudieron cargar los datos del dashboard. Intente refrescar la página.',
+        5000
+      );
     } finally {
       setIsLoading(false);
     }
   };
 
+  const calcularStatsReales = (mantenimientos: Mantenimiento[]): DashboardStats => {
+    const hoy = new Date().toISOString().split('T')[0];
+    const mantenimientosHoy = mantenimientos.filter(m => 
+      m.fechaVisita.startsWith(hoy)
+    ).length;
+    
+    const mantenimientosCompletados = mantenimientos.length;
+    const mantenimientosPendientes = 0; // Por ahora, todos los mantenimientos registrados están completados
+    const mantenimientosCancelados = 0; // Por ahora no hay cancelados
+    
+    // Calcular promedio de tiempo (mock por ahora)
+    const promedioTiempo = mantenimientos.length > 0 ? 2.5 : 0;
+    
+    // Generar tendencia semanal basada en datos reales
+    const tendenciaSemanal = generarTendenciaSemanal(mantenimientos);
+    
+    return {
+      mantenimientosHoy,
+      mantenimientosPendientes,
+      mantenimientosCompletados,
+      mantenimientosCancelados,
+      promedioTiempo,
+      tendenciaSemanal
+    };
+  };
+
+  const generarTendenciaSemanal = (mantenimientos: Mantenimiento[]) => {
+    const hoy = new Date();
+    const tendencia = [];
+    
+    for (let i = 6; i >= 0; i--) {
+      const fecha = new Date(hoy);
+      fecha.setDate(hoy.getDate() - i);
+      const fechaStr = fecha.toISOString().split('T')[0];
+      
+      const mantenimientosDelDia = mantenimientos.filter(m => 
+        m.fechaVisita.startsWith(fechaStr)
+      );
+      
+      tendencia.push({
+        fecha: fechaStr,
+        completados: mantenimientosDelDia.length,
+        pendientes: 0 // Por ahora no hay pendientes
+      });
+    }
+    
+    return tendencia;
+  };
+
   const handleRefresh = async () => {
-    await loadDashboardData();
+    try {
+      await loadDashboardData();
+      showSuccess(
+        'Datos actualizados',
+        'El dashboard se ha actualizado correctamente.',
+        3000
+      );
+    } catch (err) {
+      showError(
+        'Error al actualizar',
+        'No se pudieron actualizar los datos del dashboard.',
+        5000
+      );
+    }
   };
 
   const handleExport = async () => {
@@ -66,7 +140,11 @@ export default function MantenimientosDashboard() {
       window.URL.revokeObjectURL(url);
     } catch (err) {
       console.error('Error exportando:', err);
-      alert('Error al exportar los datos');
+      showError(
+        'Error al exportar',
+        'No se pudo exportar el archivo. Intente nuevamente.',
+        5000
+      );
     }
   };
 
@@ -136,27 +214,21 @@ export default function MantenimientosDashboard() {
               <RefreshCw className={`w-4 h-4 ${isLoading ? 'animate-spin' : ''}`} />
               Actualizar
             </Button>
+           
             <Button
-              onClick={handleExport}
-              variant="outline"
-              className="flex items-center gap-2"
-            >
-              <Download className="w-4 h-4" />
-              Exportar
-            </Button>
-            <Button
-              onClick={() => navigate('/bendita/mantenimientos/nuevo')}
-              className="flex items-center gap-2 bg-amber-200"
-            >
-              <Plus className="w-4 h-4" />
-              Nuevo
-            </Button>
+               onClick={() => navigate('/bendita/mantenimientos/nuevo')}
+               className="flex items-center gap-2 bg-amber-200"
+             >
+               <Plus className="w-4 h-4" />
+               Nuevo
+             </Button>
+
           </div>
         </div>
       </div>
 
       {/* Estadísticas principales */}
-      {stats && (
+  {stats && (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
           <div className="bg-white p-6 rounded-lg border">
             <div className="flex items-center">
@@ -206,8 +278,7 @@ export default function MantenimientosDashboard() {
             </div>
           </div>
         </div>
-      )}
-
+      )} 
       {/* Gráfico de tendencias */}
       {stats && (
         <div className="bg-white p-6 rounded-lg border">
@@ -216,42 +287,54 @@ export default function MantenimientosDashboard() {
             <TrendingUp className="w-5 h-5 text-gray-400" />
           </div>
           
-          <div className="h-64 flex items-end justify-between space-x-2">
-            {stats.tendenciaSemanal.map((item, index) => (
-              <div key={index} className="flex-1 flex flex-col items-center">
-                <div className="w-full bg-gray-200 rounded-t">
-                  <div 
-                    className="bg-blue-500 rounded-t transition-all duration-300"
-                    style={{ 
-                      height: `${(item.completados / Math.max(...stats.tendenciaSemanal.map(d => d.completados))) * 100}%` 
-                    }}
-                  />
-                </div>
-                <div className="w-full bg-gray-200 rounded-b mt-1">
-                  <div 
-                    className="bg-yellow-500 rounded-b transition-all duration-300"
-                    style={{ 
-                      height: `${(item.pendientes / Math.max(...stats.tendenciaSemanal.map(d => d.pendientes))) * 100}%` 
-                    }}
-                  />
-                </div>
-                <p className="text-xs text-gray-600 mt-2">
-                  {new Date(item.fecha).toLocaleDateString('es-ES', { weekday: 'short' })}
-                </p>
+          {stats.tendenciaSemanal.some(item => item.completados > 0 || item.pendientes > 0) ? (
+            <>
+              <div className="h-64 flex items-end justify-between space-x-2">
+                {stats.tendenciaSemanal.map((item, index) => (
+                  <div key={index} className="flex-1 flex flex-col items-center">
+                    <div className="w-full bg-gray-200 rounded-t">
+                      <div 
+                        className="bg-blue-500 rounded-t transition-all duration-300"
+                        style={{ 
+                          height: `${(item.completados / Math.max(...stats.tendenciaSemanal.map(d => d.completados))) * 100}%` 
+                        }}
+                      />
+                    </div>
+                    <div className="w-full bg-gray-200 rounded-b mt-1">
+                      <div 
+                        className="bg-yellow-500 rounded-b transition-all duration-300"
+                        style={{ 
+                          height: `${(item.pendientes / Math.max(...stats.tendenciaSemanal.map(d => d.pendientes))) * 100}%` 
+                        }}
+                      />
+                    </div>
+                    <p className="text-xs text-gray-600 mt-2">
+                      {new Date(item.fecha).toLocaleDateString('es-ES', { weekday: 'short' })}
+                    </p>
+                  </div>
+                ))}
               </div>
-            ))}
-          </div>
-          
-          <div className="flex justify-center space-x-6 mt-4">
-            <div className="flex items-center">
-              <div className="w-3 h-3 bg-blue-500 rounded mr-2"></div>
-              <span className="text-sm text-gray-600">Completados</span>
+              
+              <div className="flex justify-center space-x-6 mt-4">
+                <div className="flex items-center">
+                  <div className="w-3 h-3 bg-blue-500 rounded mr-2"></div>
+                  <span className="text-sm text-gray-600">Completados</span>
+                </div>
+                <div className="flex items-center">
+                  <div className="w-3 h-3 bg-yellow-500 rounded mr-2"></div>
+                  <span className="text-sm text-gray-600">Pendientes</span>
+                </div>
+              </div>
+            </>
+          ) : (
+            <div className="h-64 flex items-center justify-center">
+              <div className="text-center">
+                <BarChart3 className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+                <p className="text-gray-500">No hay datos de mantenimientos para mostrar</p>
+                <p className="text-sm text-gray-400">Aún no se han registrado mantenimientos</p>
+              </div>
             </div>
-            <div className="flex items-center">
-              <div className="w-3 h-3 bg-yellow-500 rounded mr-2"></div>
-              <span className="text-sm text-gray-600">Pendientes</span>
-            </div>
-          </div>
+          )}
         </div>
       )}
 
@@ -281,6 +364,21 @@ export default function MantenimientosDashboard() {
             <Loader2 className="w-6 h-6 animate-spin mr-2" />
             <span>Cargando mantenimientos...</span>
           </div>
+        ) : recentMantenimientos.length === 0 ? (
+          <div className="flex items-center justify-center p-8">
+            <div className="text-center">
+              <Wrench className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+              <p className="text-gray-500">No hay mantenimientos registrados</p>
+              <p className="text-sm text-gray-400 mb-4">Aún no se han registrado mantenimientos</p>
+              <Button
+                onClick={() => navigate('/bendita/mantenimientos/nuevo')}
+                className="flex items-center gap-2 text-white"
+              >
+                <Plus className="w-4 h-4" />
+                Registrar primer mantenimiento
+              </Button>
+            </div>
+          </div>
         ) : (
           <div className="divide-y">
             {recentMantenimientos.map((mantenimiento) => (
@@ -289,7 +387,7 @@ export default function MantenimientosDashboard() {
                   <div className="flex-1">
                     <div className="flex items-center gap-3 mb-2">
                       <h4 className="font-medium text-gray-900">
-                        Cliente: {mantenimiento.clienteCodigo} - Chopera ID: {mantenimiento.choperaId}
+                        Cliente: {mantenimiento.clienteCodigo} - Chopera: {mantenimiento.choperaId}
                       </h4>
                       <span className={`px-2 py-1 text-xs rounded-full flex items-center gap-1 ${getEstadoColor(mantenimiento.estadoGeneral)}`}>
                         {getEstadoIcon(mantenimiento.estadoGeneral)}
@@ -316,14 +414,29 @@ export default function MantenimientosDashboard() {
                     )}
                   </div>
                   
-                  <div className="flex gap-2 ml-4">
-                    <Button variant="outline" size="sm">
-                      Ver
-                    </Button>
-                    <Button variant="outline" size="sm">
-                      Editar
-                    </Button>
-                  </div>
+                                     <div className="flex gap-2 ml-4">
+                     <Button 
+                       variant="outline" 
+                       size="sm"
+                       onClick={() => {
+                         console.log('Abriendo modal para mantenimiento:', mantenimiento);
+                         setSelectedMantenimiento(mantenimiento);
+                         setIsVerModalOpen(true);
+                       }}
+                     >
+                       Ver
+                     </Button>
+                     <Button 
+                       variant="outline" 
+                       size="sm"
+                       onClick={() => {
+                         setSelectedMantenimiento(mantenimiento);
+                         setIsEditarModalOpen(true);
+                       }}
+                     >
+                       Editar
+                     </Button>
+                   </div>
                 </div>
               </div>
             ))}
@@ -331,42 +444,27 @@ export default function MantenimientosDashboard() {
         )}
       </div>
 
-      {/* Acciones rápidas */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <div className="bg-gradient-to-r from-blue-500 to-blue-600 p-6 rounded-lg text-white">
-          <div className="flex items-center justify-between">
-            <div>
-              <h3 className="text-lg font-semibold mb-2">Nuevo Mantenimiento</h3>
-              <p className="text-blue-100 mb-4">Crear un nuevo registro de mantenimiento</p>
-              <Button 
-                variant="secondary" 
-                size="sm"
-                onClick={() => navigate('/bendita/mantenimientos/nuevo')}
-              >
-                Crear
-              </Button>
-            </div>
-            <Plus className="w-12 h-12 text-blue-200" />
-          </div>
-        </div>
-        
-        <div className="bg-gradient-to-r from-green-500 to-green-600 p-6 rounded-lg text-white">
-          <div className="flex items-center justify-between">
-            <div>
-              <h3 className="text-lg font-semibold mb-2">Reportes</h3>
-              <p className="text-green-100 mb-4">Ver todos los mantenimientos y reportes</p>
-              <Button 
-                variant="secondary" 
-                size="sm"
-                onClick={() => navigate('/bendita/mantenimientos/lista')}
-              >
-                Ver Reportes
-              </Button>
-            </div>
-            <FileText className="w-12 h-12 text-green-200" />
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-}
+       {/* Modales */}
+       <ModalVerMantenimiento
+         mantenimiento={selectedMantenimiento}
+         isOpen={isVerModalOpen}
+         onClose={() => {
+           setIsVerModalOpen(false);
+           setSelectedMantenimiento(null);
+         }}
+       />
+
+       <ModalEditarMantenimiento
+         mantenimiento={selectedMantenimiento}
+         isOpen={isEditarModalOpen}
+         onClose={() => {
+           setIsEditarModalOpen(false);
+           setSelectedMantenimiento(null);
+         }}
+         onUpdate={() => {
+           loadDashboardData();
+         }}
+       />
+     </div>
+   );
+ }

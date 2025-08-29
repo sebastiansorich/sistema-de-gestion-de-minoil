@@ -15,6 +15,12 @@ export interface Cargo {
   nombre: string
   nivel: number
 }
+export interface Rol {
+  id: number
+  nombre: string
+  descripcion: string
+  activo: boolean
+}
 
 export interface Usuario {
   id: number
@@ -30,21 +36,15 @@ export interface Usuario {
   activo: boolean
   ultimoAcceso: string | null
   ultimaSincronizacion: string
-  sedeId: number
-  areaId: number
-  cargoId: number
+  sedeId?: number
+  areaId?: number
+  cargoId?: number
   // rolId NO existe - el rol viene a través del cargo
   createdAt: string
   updatedAt: string
-  sede: Sede
-  area: Area
-  cargo: Cargo & {
-    rol?: {
-      id: number
-      nombre: string
-      descripcion: string
-    }
-  }
+  sede?: Sede
+  area?: Area
+  rol?: Rol
 }
 
 export interface CreateUsuarioRequest {
@@ -57,10 +57,7 @@ export interface CreateUsuarioRequest {
   empleadoSapId?: number
   nombreCompletoSap?: string
   jefeDirectoSapId?: number
-  sedeId: number
-  areaId: number
-  cargoId: number
-  // rolId NO se incluye - el rol viene del cargo seleccionado
+  // Removed sedeId, areaId, cargoId as these tables no longer exist
 }
 
 export interface UpdateUsuarioRequest {
@@ -73,10 +70,7 @@ export interface UpdateUsuarioRequest {
   // empleadoSapId y nombreCompletoSap son campos de solo lectura del SAP
   jefeDirectoSapId?: number
   activo?: boolean
-  sedeId?: number
-  areaId?: number
-  cargoId?: number
-  // rolId NO existe - para cambiar el rol, cambia el cargoId
+  // Removed sedeId, areaId, cargoId as these tables no longer exist
 }
 
 class UsuariosService {

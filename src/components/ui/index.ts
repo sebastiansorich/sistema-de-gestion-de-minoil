@@ -19,4 +19,7 @@ export * from './navigation'
 export * from './selects'
 
 // Componentes de tabla
-export * from './tables' 
+export * from './tables'
+
+// Componentes de notificación
+export * from './Toast' 

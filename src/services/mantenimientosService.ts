@@ -5,10 +5,11 @@ export interface Mantenimiento {
   id: number
   usuarioId: number
   clienteCodigo: string
-  choperaId: number
+  itemCode: string
+  choperaCode: string
   fechaVisita: string
   tipoMantenimientoId: number
-  estadoGeneral: 'EXCELENTE' | 'BUENO' | 'REGULAR' | 'MALO'
+  estadoGeneral: string
   comentarioEstado: string
   comentarioCalidadCerveza: string
   createdAt: string
@@ -23,8 +24,16 @@ export interface Mantenimiento {
     nombre: string
     descripcion: string
     activo: boolean
-    createdAt: string
-    updatedAt: string
+  }
+  chopera: {
+    itemCode: string
+    itemName: string
+    status: string
+    ciudad: string
+    serieActivo: string
+    cardCode: string
+    cardName: string
+    aliasName: string
   }
   respuestasChecklist: RespuestaChecklist[]
   respuestasSensorial: RespuestaSensorial[]
@@ -117,9 +126,10 @@ export interface AnalisisSensorial {
 export interface MantenimientoFormData {
   fechaVisita: string
   clienteCodigo: string
-  choperaId: number
+  itemCode: string
+  choperaCode: string
   tipoMantenimientoId: number
-  estadoGeneral: 'EXCELENTE' | 'BUENO' | 'REGULAR' | 'MALO'
+  estadoGeneral: string
   comentarioEstado: string
   comentarioCalidadCerveza: string
   checklist: ChecklistMantenimiento
@@ -140,6 +150,20 @@ export interface DashboardStats {
   }[]
 }
 
+export interface ChoperasStats {
+  total: number
+  porEstado: Record<string, number>
+  porFabricante: Record<string, number>
+  porUbicacion: Record<string, number>
+  ultimaSincronizacion: string
+}
+
+export interface ChoperasStatsResponse {
+  success: boolean
+  data: ChoperasStats
+  message: string
+}
+
 export interface MantenimientosResponse {
   mantenimientos: Mantenimiento[]
   total: number
@@ -151,18 +175,31 @@ class MantenimientosService {
   /**
    * Obtener estadísticas del dashboard
    */
-  async getDashboardStats(): Promise<DashboardStats> {
+  /**
+   * Obtener estadísticas de choperas
+   */
+  async getChoperasStats(): Promise<ChoperasStats> {
     try {
-      const response = await fetch(buildUrl('/bendita/mantenimientos/stats'), {
+      const response = await fetch(buildUrl('/bendita/choperas/estadisticas'), {
         method: 'GET',
         headers: API_CONFIG.DEFAULT_HEADERS,
       })
 
-      const data = await handleApiResponse(response)
-      return data
+      const data: ChoperasStatsResponse = await handleApiResponse(response)
+      return data.data
     } catch (error) {
-      console.error('Error obteniendo estadísticas:', error)
-      // Retornar datos mock para desarrollo
+      console.error('Error obteniendo estadísticas de choperas:', error)
+      throw error
+    }
+  }
+
+  /**
+   * Obtener estadísticas del dashboard de mantenimientos
+   */
+  async getDashboardStats(): Promise<DashboardStats> {
+    try {
+      // Por ahora, usar datos mock ya que no tenemos endpoint de mantenimientos
+      // TODO: Implementar cuando esté disponible el endpoint de estadísticas de mantenimientos
       return {
         mantenimientosHoy: 5,
         mantenimientosPendientes: 12,
@@ -179,6 +216,9 @@ class MantenimientosService {
           { fecha: '2024-01-07', completados: 11, pendientes: 2 },
         ]
       }
+    } catch (error) {
+      console.error('Error obteniendo estadísticas del dashboard:', error)
+      throw error
     }
   }
 
@@ -193,6 +233,8 @@ class MantenimientosService {
     fechaDesde?: string
     fechaHasta?: string
     tecnico?: string
+    itemCode?: string
+    serieActivo?: string
   } = {}): Promise<Mantenimiento[]> {
     try {
       const params = new URLSearchParams()
@@ -200,12 +242,24 @@ class MantenimientosService {
         if (value) params.append(key, value.toString())
       })
 
+      console.log('🔍 DEBUG - mantenimientosService.getMantenimientos - Filtros enviados:', filters);
+      console.log('🔍 DEBUG - mantenimientosService.getMantenimientos - URL params:', params.toString());
+
       const response = await fetch(buildUrl(`/bendita/mantenimientos?${params}`), {
         method: 'GET',
         headers: API_CONFIG.DEFAULT_HEADERS,
       })
 
       const data = await handleApiResponse(response)
+      console.log('🔍 DEBUG - mantenimientosService.getMantenimientos - Datos devueltos:', data);
+      console.log('🔍 DEBUG - mantenimientosService.getMantenimientos - Cantidad de mantenimientos:', data.length);
+      if (data.length > 0) {
+        console.log('🔍 DEBUG - mantenimientosService.getMantenimientos - Primer mantenimiento:', {
+          itemCode: data[0].itemCode,
+          choperaCode: data[0].choperaCode,
+          clienteCodigo: data[0].clienteCodigo
+        });
+      }
       return data
     } catch (error) {
       console.error('Error obteniendo mantenimientos:', error)
@@ -248,10 +302,11 @@ class MantenimientosService {
       
       // Crear el objeto de datos que espera el backend
       const mantenimientoData = {
-        fechaVisita: new Date(formData.fechaVisita).toISOString(), // Convertir a ISO 8601
+        fechaVisita: formData.fechaVisita,
         clienteCodigo: formData.clienteCodigo,
-        choperaId: parseInt(formData.choperaId.toString()),
-        tipoMantenimientoId: parseInt(formData.tipoMantenimientoId.toString()),
+        itemCode: formData.itemCode,
+        choperaCode: formData.choperaCode,
+        tipoMantenimientoId: formData.tipoMantenimientoId,
         estadoGeneral: formData.estadoGeneral,
         comentarioEstado: formData.comentarioEstado,
         comentarioCalidadCerveza: formData.comentarioCalidadCerveza,
@@ -434,7 +489,8 @@ class MantenimientosService {
         id: 1,
         usuarioId: 1,
         clienteCodigo: "CLP03480",
-        choperaId: 1,
+        itemCode: "903050",
+        choperaCode: "UPP2092208M",
         fechaVisita: "2025-08-10T00:00:00.000Z",
         tipoMantenimientoId: 2,
         estadoGeneral: "BUENO",
@@ -451,9 +507,17 @@ class MantenimientosService {
           id: 2,
           nombre: "Mantenimiento Preventivo",
           descripcion: "Mantenimiento programado para prevenir fallas",
-          activo: true,
-          createdAt: "2025-08-12T15:18:00.340Z",
-          updatedAt: "2025-08-12T15:18:00.340Z"
+          activo: true
+        },
+        chopera: {
+          itemCode: "903050",
+          itemName: "CHOPERA PLUS 3T TP IT",
+          status: "Minoil",
+          ciudad: "1.Santa Cruz",
+          serieActivo: "Sin serie TP 3T - 2",
+          cardCode: "",
+          cardName: "",
+          aliasName: ""
         },
         respuestasChecklist: [],
         respuestasSensorial: []
@@ -462,7 +526,8 @@ class MantenimientosService {
         id: 2,
         usuarioId: 1,
         clienteCodigo: "CLP04520",
-        choperaId: 2,
+        itemCode: "903039",
+        choperaCode: "UPP2092208Q",
         fechaVisita: "2025-08-11T00:00:00.000Z",
         tipoMantenimientoId: 1,
         estadoGeneral: "REGULAR",
@@ -479,9 +544,17 @@ class MantenimientosService {
           id: 1,
           nombre: "Mantenimiento Correctivo",
           descripcion: "Mantenimiento para corregir fallas existentes",
-          activo: true,
-          createdAt: "2025-08-12T15:18:00.340Z",
-          updatedAt: "2025-08-12T15:18:00.340Z"
+          activo: true
+        },
+        chopera: {
+          itemCode: "903039",
+          itemName: "CHOPERA MEMO UPPER PLUS 2T",
+          status: "Prestado",
+          ciudad: "2.La Paz",
+          serieActivo: "UPP2092208Q",
+          cardCode: "CLP03480",
+          cardName: "LINARES CASTILLO LUIS FERNANDO",
+          aliasName: "LEGENDS"
         },
         respuestasChecklist: [],
         respuestasSensorial: []

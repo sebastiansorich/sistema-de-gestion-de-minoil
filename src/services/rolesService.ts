@@ -25,7 +25,7 @@ export interface Rol {
     }
   }[]
   _count: {
-    cargos: number
+    usuarios?: number // Cambiado de cargos a usuarios ya que cargos ya no existe
     permisos: number
   }
 }

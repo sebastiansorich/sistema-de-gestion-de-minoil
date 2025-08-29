@@ -64,175 +64,55 @@ export default function ModalChoperaDetails({ open, onClose, chopera }: ModalCho
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
                     <label className="text-sm font-medium text-gray-600">Código de Artículo</label>
-                    <p className="text-gray-900 font-mono">{chopera.ItemCode}</p>
+                    <p className="text-gray-900 font-mono">{chopera.itemCode}</p>
                   </div>
                   <div>
-                    <label className="text-sm font-medium text-gray-600">Tipo de Artículo</label>
-                    <p className="text-gray-900">{chopera.ItemType}</p>
+                    <label className="text-sm font-medium text-gray-600">Status</label>
+                    <p className="text-gray-900">{chopera.status}</p>
                   </div>
                   <div className="md:col-span-2">
                     <label className="text-sm font-medium text-gray-600">Nombre del Artículo</label>
-                    <p className="text-gray-900 font-medium">{chopera.ItemName}</p>
+                    <p className="text-gray-900 font-medium">{chopera.itemName}</p>
                   </div>
                 </div>
               </div>
 
-              {/* Información de Inventario */}
+              {/* Ubicación y Serie */}
               <div className="bg-blue-50 rounded-lg p-4">
                 <h3 className="font-semibold text-gray-900 mb-3 flex items-center gap-2">
-                  <Package className="w-4 h-4" />
-                  Información de Inventario
+                  <MapPin className="w-4 h-4" />
+                  Ubicación y Serie
                 </h3>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
-                    <label className="text-sm font-medium text-gray-600">Artículo de Inventario</label>
-                    <p className="text-gray-900">
-                      <span className={`px-2 py-1 text-xs rounded-full ${
-                        chopera.InvntItem === 'Y' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
-                      }`}>
-                        {chopera.InvntItem === 'Y' ? 'Sí' : 'No'}
-                      </span>
-                    </p>
+                    <label className="text-sm font-medium text-gray-600">Ciudad</label>
+                    <p className="text-gray-900">{chopera.ciudad || 'No especificada'}</p>
                   </div>
                   <div>
-                    <label className="text-sm font-medium text-gray-600">Artículo de Venta</label>
-                    <p className="text-gray-900">
-                      <span className={`px-2 py-1 text-xs rounded-full ${
-                        chopera.SellItem === 'Y' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
-                      }`}>
-                        {chopera.SellItem === 'Y' ? 'Sí' : 'No'}
-                      </span>
-                    </p>
-                  </div>
-                  <div>
-                    <label className="text-sm font-medium text-gray-600">Artículo de Compra</label>
-                    <p className="text-gray-900">
-                      <span className={`px-2 py-1 text-xs rounded-full ${
-                        chopera.PrchseItem === 'Y' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
-                      }`}>
-                        {chopera.PrchseItem === 'Y' ? 'Sí' : 'No'}
-                      </span>
-                    </p>
+                    <label className="text-sm font-medium text-gray-600">Serie/Activo</label>
+                    <p className="text-gray-900 font-mono">{chopera.serieActivo || 'Sin serie'}</p>
                   </div>
                 </div>
               </div>
 
-              {/* Grupo y Clasificación */}
+              {/* Información del Cliente */}
               <div className="bg-green-50 rounded-lg p-4">
                 <h3 className="font-semibold text-gray-900 mb-3 flex items-center gap-2">
                   <Building className="w-4 h-4" />
-                  Grupo y Clasificación
+                  Información del Cliente
                 </h3>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
-                    <label className="text-sm font-medium text-gray-600">Código de Grupo</label>
-                    <p className="text-gray-900">{chopera.ItmsGrpCod}</p>
+                    <label className="text-sm font-medium text-gray-600">Código del Cliente</label>
+                    <p className="text-gray-900">{chopera.cardCode || 'Sin código'}</p>
                   </div>
                   <div>
-                    <label className="text-sm font-medium text-gray-600">Nombre del Grupo</label>
-                    <p className="text-gray-900">{chopera.ItmsGrpNam}</p>
+                    <label className="text-sm font-medium text-gray-600">Nombre del Cliente</label>
+                    <p className="text-gray-900">{chopera.cardName || 'Sin nombre'}</p>
                   </div>
-                  <div>
-                    <label className="text-sm font-medium text-gray-600">Grupo de Consulta 1</label>
-                    <p className="text-gray-900">{chopera.QryGroup1}</p>
-                  </div>
-                </div>
-              </div>
-
-              {/* Unidades de Medida */}
-              <div className="bg-orange-50 rounded-lg p-4">
-                <h3 className="font-semibold text-gray-900 mb-3">Unidades de Medida</h3>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  <div>
-                    <label className="text-sm font-medium text-gray-600">Unidad de Venta</label>
-                    <p className="text-gray-900 font-mono">{chopera.SalUnitMsr}</p>
-                  </div>
-                  <div>
-                    <label className="text-sm font-medium text-gray-600">Unidad de Compra</label>
-                    <p className="text-gray-900 font-mono">{chopera.PurUnitMsr}</p>
-                  </div>
-                  <div>
-                    <label className="text-sm font-medium text-gray-600">Unidad de Inventario</label>
-                    <p className="text-gray-900 font-mono">{chopera.InvntryUom}</p>
-                  </div>
-                </div>
-              </div>
-
-              {/* Precios */}
-              <div className="bg-purple-50 rounded-lg p-4">
-                <h3 className="font-semibold text-gray-900 mb-3 flex items-center gap-2">
-                  <DollarSign className="w-4 h-4" />
-                  Información de Precios
-                </h3>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div>
-                    <label className="text-sm font-medium text-gray-600">Último Precio de Compra</label>
-                    <p className="text-gray-900 font-mono text-lg">{formatCurrency(chopera.LastPurPrc)}</p>
-                  </div>
-                  <div>
-                    <label className="text-sm font-medium text-gray-600">Precio Promedio</label>
-                    <p className="text-gray-900 font-mono text-lg">{formatCurrency(chopera.AvgPrice)}</p>
-                  </div>
-                </div>
-              </div>
-
-              {/* Ubicación y Estado */}
-              <div className="bg-yellow-50 rounded-lg p-4">
-                <h3 className="font-semibold text-gray-900 mb-3 flex items-center gap-2">
-                  <MapPin className="w-4 h-4" />
-                  Ubicación y Estado
-                </h3>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div>
-                    <label className="text-sm font-medium text-gray-600">Ubicación</label>
-                    <p className="text-gray-900">{chopera.U_Ubicacion || 'No especificada'}</p>
-                  </div>
-                  <div>
-                    <label className="text-sm font-medium text-gray-600">Estado</label>
-                    <p className="text-gray-900">
-                      <span className={`px-2 py-1 text-xs rounded-full ${
-                        chopera.U_Estado 
-                          ? 'bg-green-100 text-green-800' 
-                          : 'bg-gray-100 text-gray-800'
-                      }`}>
-                        {chopera.U_Estado || 'Sin estado'}
-                      </span>
-                    </p>
-                  </div>
-                </div>
-              </div>
-
-              {/* Proveedor */}
-              {(chopera.FirmCode > 0 || chopera.FirmName) && (
-                <div className="bg-indigo-50 rounded-lg p-4">
-                  <h3 className="font-semibold text-gray-900 mb-3">Información de Proveedor</h3>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div>
-                      <label className="text-sm font-medium text-gray-600">Código de Proveedor</label>
-                      <p className="text-gray-900">{chopera.FirmCode || 'No asignado'}</p>
-                    </div>
-                    <div>
-                      <label className="text-sm font-medium text-gray-600">Nombre de Proveedor</label>
-                      <p className="text-gray-900">{chopera.FirmName || 'No asignado'}</p>
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              {/* Fechas */}
-              <div className="bg-gray-50 rounded-lg p-4">
-                <h3 className="font-semibold text-gray-900 mb-3 flex items-center gap-2">
-                  <Calendar className="w-4 h-4" />
-                  Fechas Importantes
-                </h3>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div>
-                    <label className="text-sm font-medium text-gray-600">Fecha de Creación</label>
-                    <p className="text-gray-900">{formatDate(chopera.CreateDate)}</p>
-                  </div>
-                  <div>
-                    <label className="text-sm font-medium text-gray-600">Última Actualización</label>
-                    <p className="text-gray-900">{formatDate(chopera.UpdateDate)}</p>
+                  <div className="md:col-span-2">
+                    <label className="text-sm font-medium text-gray-600">Alias</label>
+                    <p className="text-gray-900">{chopera.aliasName || 'Sin alias'}</p>
                   </div>
                 </div>
               </div>

@@ -11,13 +11,15 @@ const getPageTitle = (pathname: string): string => {
     '/': 'MINOIL BPMS',
     '/usuarios': 'Gestión de Usuarios',
     '/usuarios/roles': 'Roles y Permisos',
-    '/usuarios/cargos': 'Gestión de Cargos',
+    // Removed route for deleted Cargos component
     '/salidas/ingresar': 'Ingresar Salida',
     '/salidas/gestionar': 'Gestionar Salidas',
     '/marketing/mercaderistas': 'Mercaderistas',
     '/marketing/reportes-sala': 'Reportes por Sala',
     '/rrhh/planilla-comisiones': 'Planilla de Comisiones',
-    '/rrhh/vacaciones': 'Gestión de Vacaciones'
+    '/rrhh/vacaciones': 'Gestión de Vacaciones',
+    '/Bendita/choperas': 'Gestión de Choperas',
+    '/Bendita/mantenimiento': 'Gestión de Mantenimiento',
   }
   
   return routeTitles[pathname] || 'MINOIL S.A'

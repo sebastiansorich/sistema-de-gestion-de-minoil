@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react'
-import { Users, Building, MapPin, Shield, TrendingUp, Activity } from 'lucide-react'
-import { usuariosService, sedesService, areasService, rolesService } from '../../../services'
+import { Users, Shield, TrendingUp, Activity } from 'lucide-react'
+import { usuariosService, rolesService } from '../../../services'
 
 interface StatCard {
   title: string
@@ -22,10 +22,8 @@ export function StatsCards() {
         setLoading(true)
         
         // Obtener datos en paralelo
-        const [usuarios, sedes, areas, roles] = await Promise.all([
+        const [usuarios, roles] = await Promise.all([
           usuariosService.getAll().catch(() => []),
-          sedesService.getAll().catch(() => []),
-          areasService.getAll().catch(() => []),
           rolesService.getAll().catch(() => [])
         ])
 
@@ -52,22 +50,22 @@ export function StatsCards() {
             changeType: activationRate > 80 ? 'increase' : activationRate > 60 ? 'neutral' : 'decrease'
           },
           {
-            title: 'Sedes Operativas',
-            value: sedes.filter((s: any) => s.activo).length,
-            icon: <Building className="w-6 h-6" />,
+            title: 'Roles Configurados',
+            value: roles.filter((r: any) => r.activo).length,
+            icon: <Shield className="w-6 h-6" />,
             gradient: 'linear-gradient(135deg, #E8DB1B 0%, #d4c800 100%)',
             iconColor: '#000000',
-            change: `${sedes.length} total`,
+            change: `${roles.length} total`,
             changeType: 'neutral'
           },
           {
-            title: 'Áreas de Trabajo',
-            value: areas.filter((a: any) => a.activo).length,
-            icon: <MapPin className="w-6 h-6" />,
+            title: 'Sistema Operativo',
+            value: '✓',
+            icon: <Activity className="w-6 h-6" />,
             gradient: 'linear-gradient(135deg, #19202a 0%, #2a3441 100%)',
             iconColor: '#ffffff',
-            change: `${areas.length} configuradas`,
-            changeType: 'neutral'
+            change: 'Funcionando correctamente',
+            changeType: 'increase'
           },
           {
             title: 'Accesos Recientes',

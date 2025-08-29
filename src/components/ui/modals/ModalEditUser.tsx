@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react'
 import { X, Loader2, AlertCircle, User, Mail, Building, MapPin, Briefcase, Shield } from 'lucide-react'
 import { usuariosService, type Usuario, type UpdateUsuarioRequest } from '../../../services'
-import { SelectSedes, SelectAreas, SelectCargos } from '../selects'
 import { Button } from '../base/button'
+import { SelectRoles } from '../selects/SelectRoles'
 
 interface ModalEditUserProps {
   open: boolean
@@ -27,10 +27,7 @@ export function ModalEditUser({ open, onClose, usuario, onSave }: ModalEditUserP
         autenticacion: usuario.autenticacion,
         // empleadoSapId y nombreCompletoSap son de solo lectura, no se envían en updates
         activo: usuario.activo,
-        sedeId: usuario.sedeId,
-        areaId: usuario.areaId,
-        cargoId: usuario.cargoId
-        // rolId NO existe - el rol viene del cargo seleccionado
+        rolId: usuario.rolId || undefined
       })
     }
     setError(null)
@@ -176,40 +173,23 @@ export function ModalEditUser({ open, onClose, usuario, onSave }: ModalEditUserP
             </p>
           </div>
 
-          {/* Ubicación y cargo */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                <Building className="w-4 h-4 inline mr-1" />
-                Sede
-              </label>
-              <SelectSedes
-                value={formData.sedeId || ''}
-                onChange={(value) => handleChange('sedeId', value ? Number(value) : undefined)}
-              />
-            </div>
 
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                <MapPin className="w-4 h-4 inline mr-1" />
-                Área
-              </label>
-              <SelectAreas
-                value={formData.areaId || ''}
-                onChange={(value) => handleChange('areaId', value ? Number(value) : undefined)}
-              />
-            </div>
 
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                <Briefcase className="w-4 h-4 inline mr-1" />
-                Cargo
-              </label>
-              <SelectCargos
-                value={formData.cargoId || ''}
-                onChange={(value) => handleChange('cargoId', value ? Number(value) : undefined)}
-              />
-            </div>
+          {/* Asignación de Rol */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              <Shield className="w-4 h-4 inline mr-1" />
+              Rol Asignado
+            </label>
+            <SelectRoles
+              value={formData.rolId?.toString() || ''}
+              onChange={(value) => handleChange('rolId', value ? parseInt(value) : undefined)}
+              placeholder="Seleccionar rol..."
+              className="w-full"
+            />
+            <p className="text-xs text-gray-500 mt-1">
+              Asigna un rol para definir los permisos del usuario en el sistema
+            </p>
           </div>
 
           {/* Información sobre roles */}
@@ -219,23 +199,10 @@ export function ModalEditUser({ open, onClose, usuario, onSave }: ModalEditUserP
               <h4 className="font-medium text-blue-900">Sistema de Roles</h4>
             </div>
             <p className="text-sm text-blue-800 mb-2">
-              El rol del usuario se asigna automáticamente a través del <strong>cargo seleccionado</strong>.
+              Los roles definen los permisos que tiene el usuario en cada módulo del sistema.
             </p>
-            {usuario?.cargo?.rol && (
-              <div className="bg-white rounded border border-blue-300 p-3">
-                <p className="text-sm text-gray-600">Rol actual:</p>
-                <p className="font-semibold text-blue-900">
-                  {usuario.cargo.rol.nombre}
-                </p>
-                {usuario.cargo.rol.descripcion && (
-                  <p className="text-xs text-gray-600 mt-1">
-                    {usuario.cargo.rol.descripcion}
-                  </p>
-                )}
-              </div>
-            )}
             <p className="text-xs text-blue-600 mt-2">
-              💡 Para cambiar el rol, selecciona un cargo diferente arriba
+              💡 Puede gestionar roles y permisos desde la sección de Roles y Permisos
             </p>
           </div>
 

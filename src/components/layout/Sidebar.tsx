@@ -163,6 +163,9 @@ const getModuleIcon = (modulo: Modulo): React.ReactNode => {
 	if (name.includes('bendita') || name.includes('chopera')) {
 		return <Coffee className="w-5 h-5" />;
 	}
+	if (name.includes('mantenimiento') || name.includes('maintenance')) {
+		return <Cog className="w-5 h-5" />;
+	}
   
   // 4. Ícono por defecto
   return <ClipboardList className="w-5 h-5" />;
@@ -170,20 +173,39 @@ const getModuleIcon = (modulo: Modulo): React.ReactNode => {
 
 // Función para obtener submenues dinámicos del backend
 const getSubmenus = (modulo: Modulo): SubMenuItem[] => {
+  console.log(`🔍 getSubmenus para módulo ${modulo.nombre}:`, {
+    tieneSubmodulos: !!modulo.submodulos,
+    cantidadSubmodulos: modulo.submodulos?.length || 0,
+    submodulos: modulo.submodulos
+  })
+  
   // Los submódulos vienen directamente del backend con datos completos
   if (!modulo.submodulos || modulo.submodulos.length === 0) {
+    console.log(`❌ Módulo ${modulo.nombre} no tiene submódulos`)
     return [];
   }
   
   // Convertir submódulos a formato SubMenuItem y ordenar
-  return modulo.submodulos
-    .filter(sub => sub.activo && sub.esMenu) // Solo submódulos activos y de menú
+  const submenus = modulo.submodulos
+    .filter(sub => {
+      // Manejar tanto boolean como number (1/0)
+      const isActive = (typeof sub.activo === 'boolean' ? sub.activo : sub.activo === 1) && 
+                      (typeof sub.esMenu === 'boolean' ? sub.esMenu : sub.esMenu === 1);
+      console.log(`  🔍 Submódulo ${sub.nombre}: activo=${sub.activo} (${typeof sub.activo}), esMenu=${sub.esMenu} (${typeof sub.esMenu}), filtrado=${isActive}`)
+      return isActive;
+    }) // Solo submódulos activos y de menú
     .sort((a, b) => a.orden - b.orden) // Ordenar por campo orden
-    .map(sub => ({
-      label: sub.nombre,
-      to: sub.ruta,
-      permission: sub.id.toString() // Usar ID como permission para verificar acceso
-    }));
+    .map(sub => {
+      console.log(`🎯 Creando SubMenuItem para ${sub.nombre}: ruta=${sub.ruta}`);
+      return {
+        label: sub.nombre,
+        to: sub.ruta,
+        permission: sub.id.toString() // Usar ID como permission para verificar acceso
+      };
+    });
+    
+  console.log(`✅ Submenus generados para ${modulo.nombre}:`, submenus)
+  return submenus;
 };
 
 function SidebarItem({ item, active, parentOpen, onClick, children }: {
@@ -196,7 +218,7 @@ function SidebarItem({ item, active, parentOpen, onClick, children }: {
 	return item.submenu ? (
 		<div>
 			<button
-				className={`w-full flex items-center gap-2 px-4 py-2 rounded-lg sidebar-menu-item text-base ${parentOpen ? "sidebar-menu-parent-open" : ""}`}
+				className={`w-full flex items-center gap-2 px-4 py-2 rounded-lg sidebar-menu-item text-base ${parentOpen ? "sidebar-menu-parent-open" : ""} ${active ? "sidebar-menu-item-active" : ""}`}
 				onClick={onClick}
 				type="button"
 			>
@@ -239,10 +261,15 @@ export default function Sidebar() {
 			// Usar el nuevo endpoint jerárquico del sidebar
 			const data = await modulosService.getSidebarModules()
 			
-			// Filtrar solo módulos activos (mostrar todos los módulos activos)
-			const filteredModulos = data
-				.filter(modulo => modulo.activo) // Solo módulos activos
-				.sort((a, b) => a.orden - b.orden) // Ordenar por campo orden
+					// Filtrar solo módulos activos (mostrar todos los módulos activos)
+		const filteredModulos = data
+			.filter(modulo => {
+				// Manejar tanto boolean como number (1/0)
+				const isActive = typeof modulo.activo === 'boolean' ? modulo.activo : modulo.activo === 1;
+				console.log(`🔍 Filtrando módulo ${modulo.nombre}: activo=${modulo.activo} (${typeof modulo.activo}), isActive=${isActive}`);
+				return isActive;
+			}) // Solo módulos activos
+			.sort((a, b) => a.orden - b.orden) // Ordenar por campo orden
 			
 			setModulos(filteredModulos)
 			console.log('🔄 Sidebar: Módulos jerárquicos recargados desde /modulos/sidebar')
@@ -353,6 +380,10 @@ export default function Sidebar() {
 
 	// Construir menu items dinámicamente desde los módulos jerárquicos del backend
 	const buildMenuItems = (): MenuItem[] => {
+		console.log('🔨 Construyendo menu items...')
+		console.log('📊 Módulos disponibles:', modulos.length)
+		console.log('👤 Usuario:', user?.nombre)
+		
 		const menuItems: MenuItem[] = [
 			{
 				id: 0,
@@ -363,19 +394,27 @@ export default function Sidebar() {
 			}
 		];
 
-		
-
 		// Agregar módulos del backend filtrados por permisos
 		modulos.forEach(modulo => {
 			console.log(`🔍 Procesando módulo ${modulo.id} (${modulo.nombre})...`)
+			console.log(`  📋 Datos del módulo:`, {
+				nivel: modulo.nivel,
+				activo: modulo.activo,
+				esMenu: modulo.esMenu,
+				submodulos: modulo.submodulos?.length || 0
+			})
 			
 			// Solo procesar módulos de nivel 1 (módulos padre)
 			if (modulo.nivel === 1) {
+				console.log(`✅ Módulo ${modulo.nombre} es de nivel 1, procesando...`)
+				
 				// TEMPORAL: Bypass de permisos para debugging
 				const DEBUG_BYPASS_MODULE_PERMISSIONS = true; // Cambiar a false cuando quieras activar permisos
 				
 				// Solo agregar módulos a los que el usuario tiene acceso (directo o a submódulos)
 				if (DEBUG_BYPASS_MODULE_PERMISSIONS || shouldShowModule(modulo)) {
+					console.log(`✅ Módulo ${modulo.nombre} será agregado al menú`)
+					
 					const submenu = getSubmenus(modulo);
 					console.log(`📋 Submenu generado para ${modulo.nombre}:`, submenu)
 					
@@ -399,21 +438,33 @@ export default function Sidebar() {
 					
 					console.log(`✅ Submenu filtrado para ${modulo.nombre}:`, filteredSubmenu)
 					
-					menuItems.push({
+					const menuItem = {
 						id: modulo.id,
 						label: modulo.nombre,
 						icon: getModuleIcon(modulo),
-						// Si hay submódulos con acceso, no ruta directa; si no hay submódulos o solo acceso al padre, ruta directa
-						to: filteredSubmenu.length > 0 ? undefined : modulo.ruta,
+						// Siempre asignar la ruta del módulo, incluso si tiene submódulos
+						to: modulo.ruta,
 						permission: null, // Ya verificamos permisos arriba
 						submenu: filteredSubmenu.length > 0 ? filteredSubmenu : undefined,
-					});
+					};
+					
+					console.log(`🎯 Menu item creado para ${modulo.nombre}:`, {
+						id: menuItem.id,
+						label: menuItem.label,
+						to: menuItem.to,
+						hasSubmenu: !!menuItem.submenu,
+						submenuLength: menuItem.submenu?.length || 0
+					})
+					menuItems.push(menuItem);
 				} else {
 					console.log(`❌ Módulo ${modulo.nombre} no se mostrará (sin acceso)`)
 				}
+			} else {
+				console.log(`❌ Módulo ${modulo.nombre} no es de nivel 1 (nivel: ${modulo.nivel})`)
 			}
 		});
 
+		console.log('🎯 Menu items final:', menuItems)
 		return menuItems;
 	};
 
@@ -484,6 +535,10 @@ export default function Sidebar() {
 					<div className="sidebar-separator" />
 					{/* Navegación */}
 					<nav className="flex-1 flex flex-col gap-2 px-2 mt-2">
+						{(() => {
+							console.log('🔍 Estado de carga:', { isLoading, error, modulosLength: modulos.length });
+							return null;
+						})()}
 						{isLoading ? (
 							<div className="flex items-center justify-center p-4">
 								<Loader2 className="w-5 h-5 animate-spin mr-2" />
@@ -501,35 +556,65 @@ export default function Sidebar() {
 								</button>
 							</div>
 						) : (
-							menuItems.map((item) => {
-								const isActive = location.pathname === item.to;
-								return (
-									<div key={item.id}>
-										<SidebarItem
-											item={item}
-											active={!!isActive}
-											parentOpen={!!(item.submenu && submenuOpen[item.label])}
-											onClick={item.submenu ? () => handleSubmenu(item.label) : () => setOpen(false)}
-										>
-											{item.submenu && (submenuOpen[item.label] ? <ChevronUp /> : <ChevronDown />)}
-										</SidebarItem>
-										{item.submenu && submenuOpen[item.label] && (
-											<div className="ml-8 flex flex-col gap-1">
-												{item.submenu.map((sub) => (
-													<Link
-														key={sub.to}
-														to={sub.to}
-														className={`px-3 py-1 rounded sidebar-menu-item text-sm ${location.pathname === sub.to ? "sidebar-menu-item-active" : ""}`}
-														onClick={() => setOpen(false)}
-													>
-														{sub.label}
-													</Link>
-												))}
-											</div>
-										)}
-									</div>
-								)
-							})
+							<>
+								{(() => {
+									console.log('🎨 Renderizando menu items:', menuItems.length, menuItems);
+									return null;
+								})()}
+								{menuItems.map((item) => {
+									const isActive = location.pathname === item.to;
+									(() => {
+										console.log(`🎨 Renderizando item: ${item.label} (${item.id})`, {
+											hasSubmenu: !!item.submenu,
+											submenuLength: item.submenu?.length || 0,
+											isActive
+										});
+									})();
+									return (
+										<div key={item.id}>
+											<SidebarItem
+												item={item}
+												active={!!isActive}
+												parentOpen={!!(item.submenu && submenuOpen[item.label])}
+												onClick={() => {
+													if (item.submenu) {
+														handleSubmenu(item.label);
+													}
+													setOpen(false);
+												}}
+											>
+												{item.submenu && (submenuOpen[item.label] ? <ChevronUp /> : <ChevronDown />)}
+											</SidebarItem>
+											{item.submenu && submenuOpen[item.label] && (
+												<div className="ml-8 flex flex-col gap-1">
+													{(() => {
+														console.log(`🔍 Renderizando submódulos para ${item.label}:`, item.submenu);
+														return null;
+													})()}
+													{item.submenu.map((sub) => {
+														(() => {
+															console.log(`🎯 Submódulo ${sub.label}: ruta=${sub.to}, activo=${location.pathname === sub.to}`);
+														})();
+														return (
+															<Link
+																key={sub.to}
+																to={sub.to}
+																className={`px-3 py-1 rounded sidebar-menu-item text-sm ${location.pathname === sub.to ? "sidebar-menu-item-active" : ""}`}
+																onClick={() => {
+																	console.log(`🔄 Navegando a: ${sub.to}`);
+																	setOpen(false);
+																}}
+															>
+																{sub.label}
+															</Link>
+														);
+													})}
+												</div>
+											)}
+										</div>
+									)
+								})}
+							</>
 						)}
 					</nav>
 					<div className="sidebar-separator" />

@@ -51,19 +51,25 @@ export function WelcomeCard() {
               <div className="flex items-center gap-2">
                 <User className="w-4 h-4" />
                 <span className="text-blue-100">Cargo:</span>
-                <span className="font-medium text-white">{user.cargo.nombre}</span>
+                <span className="font-medium text-white">
+                  {user.cargo?.nombre || 'No asignado'}
+                </span>
               </div>
 
               <div className="flex items-center gap-2">
                 <MapPin className="w-4 h-4" />
                 <span className="text-blue-100">Sede:</span>
-                <span className="font-medium text-white">{user.sede.nombre}</span>
+                <span className="font-medium text-white">
+                  {user.sede?.nombre || 'No asignada'}
+                </span>
               </div>
 
               <div className="flex items-center gap-2">
                 <Users className="w-4 h-4" />
                 <span className="text-blue-100">Área:</span>
-                <span className="font-medium text-white">{user.area.nombre}</span>
+                <span className="font-medium text-white">
+                  {user.area?.nombre || 'No asignada'}
+                </span>
               </div>
 
               <div className="flex items-center gap-2">

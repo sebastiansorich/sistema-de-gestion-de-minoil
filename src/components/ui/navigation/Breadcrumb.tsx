@@ -12,7 +12,8 @@ const routeNames: { [key: string]: string } = {
   "/usuarios": "Usuarios",
   "/usuarios/roles": "Roles y Permisos",
   "/bendita": "Bendita",
-  "/bendita/choperas": "Gestión de Choperas",
+  "/bendita/choperas": "Choperas",
+  "/bendita/choperas/:itemCode/mantenimientos": "Dashboard de Chopera",
   "/bendita/mantenimientos": "Dashboard de Mantenimientos",
   "/bendita/mantenimientos/nuevo": "Nuevo Mantenimiento",
   "/bendita/mantenimientos/lista": "Lista de Mantenimientos",
@@ -35,7 +36,56 @@ const getBreadcrumbItems = (pathname: string): BreadcrumbItem[] => {
     return items
   }
   
-  // Dividir la ruta en segmentos
+  // Casos especiales para mejor navegación
+  if (pathname.startsWith("/bendita/choperas/") && pathname.includes("/mantenimientos")) {
+    // Dashboard específico de una chopera
+    items.push(
+      { path: "/bendita", label: "Bendita", isLast: false },
+      { path: "/bendita/choperas", label: "Choperas", isLast: false },
+      { path: pathname, label: "Dashboard de Chopera", isLast: true }
+    )
+    return items
+  }
+  
+  if (pathname === "/bendita/mantenimientos/nuevo") {
+    // Formulario de nuevo mantenimiento
+    items.push(
+      { path: "/bendita", label: "Bendita", isLast: false },
+      { path: "/bendita/mantenimientos", label: "Dashboard de Mantenimientos", isLast: false },
+      { path: pathname, label: "Nuevo Mantenimiento", isLast: true }
+    )
+    return items
+  }
+  
+  if (pathname === "/bendita/mantenimientos/lista") {
+    // Lista de mantenimientos
+    items.push(
+      { path: "/bendita", label: "Bendita", isLast: false },
+      { path: "/bendita/mantenimientos", label: "Dashboard de Mantenimientos", isLast: false },
+      { path: pathname, label: "Lista de Mantenimientos", isLast: true }
+    )
+    return items
+  }
+  
+  if (pathname === "/bendita/choperas") {
+    // Lista de choperas
+    items.push(
+      { path: "/bendita", label: "Bendita", isLast: false },
+      { path: pathname, label: "Choperas", isLast: true }
+    )
+    return items
+  }
+  
+  if (pathname === "/bendita/mantenimientos") {
+    // Dashboard de mantenimientos
+    items.push(
+      { path: "/bendita", label: "Bendita", isLast: false },
+      { path: pathname, label: "Dashboard de Mantenimientos", isLast: true }
+    )
+    return items
+  }
+  
+  // Dividir la ruta en segmentos para casos normales
   const segments = pathname.split("/").filter(Boolean)
   
   let currentPath = ""

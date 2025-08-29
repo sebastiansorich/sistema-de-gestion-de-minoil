@@ -17,20 +17,20 @@ export interface User {
   activo: boolean
   ultimoAcceso: string | null
   ultimaSincronizacion: string
-  sedeId: number
-  areaId: number
-  cargoId: number
+  sedeId?: number
+  areaId?: number
+  cargoId?: number
   createdAt: string
   updatedAt: string
-  sede: {
+  sede?: {
     id: number
     nombre: string
   }
-  area: {
+  area?: {
     id: number
     nombre: string
   }
-  cargo: {
+  cargo?: {
     id: number
     nombre: string
     nivel: number

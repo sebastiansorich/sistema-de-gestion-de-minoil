@@ -1,4 +1,5 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { 
   ArrowLeft, 
   ArrowRight, 
@@ -8,15 +9,17 @@ import {
   X, 
   CheckCircle,
   AlertCircle,
-  Loader2
+  Loader2,
+  Package
 } from "lucide-react";
 import { Button } from "../../components/ui";
 import Breadcrumb from "../../components/ui/navigation/Breadcrumb";
 import ChecklistMantenimientoComponent from "../../components/ui/forms/ChecklistMantenimiento";
 import AnalisisSensorialComponent from "../../components/ui/forms/AnalisisSensorial";
-import { SelectChoperas } from "../../components/ui/selects";
-import { mantenimientosService } from "../../services";
-import type { MantenimientoFormData, ChecklistMantenimiento } from "../../services";
+import { SelectChoperas, SelectClientes } from "../../components/ui/selects";
+import { mantenimientosService, choperasService, clientesService } from "../../services";
+import { useToastContext } from "../../contexts/ToastContext";
+import type { MantenimientoFormData, ChecklistMantenimiento, Chopera, Cliente } from "../../services";
 import type { AnalisisSensorialData } from "../../components/ui/forms/AnalisisSensorial";
 
 const steps = [
@@ -30,7 +33,8 @@ const steps = [
 const initialFormData: MantenimientoFormData = {
   fechaVisita: new Date().toISOString().split('T')[0],
   clienteCodigo: '',
-  choperaId: 0,
+  itemCode: '',
+  choperaCode: '',
   tipoMantenimientoId: 1, // Preventivo por defecto
   estadoGeneral: 'BUENO',
   comentarioEstado: '',
@@ -59,10 +63,102 @@ const initialFormData: MantenimientoFormData = {
 };
 
 export default function NuevoMantenimiento() {
+  const navigate = useNavigate();
+  const { showSuccess, showError } = useToastContext();
   const [currentStep, setCurrentStep] = useState(1);
   const [formData, setFormData] = useState<MantenimientoFormData>(initialFormData);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const [choperas, setChoperas] = useState<Chopera[]>([]);
+  const [clientes, setClientes] = useState<Cliente[]>([]);
+  const [selectedChopera, setSelectedChopera] = useState<Chopera | null>(null);
+  const [selectedCliente, setSelectedCliente] = useState<string>('');
+  
+  // Obtener parámetros de la URL
+  const [searchParams] = useSearchParams();
+  const itemCode = searchParams.get('itemCode');
+  const clienteCodigo = searchParams.get('clienteCodigo');
+  const serieActivo = searchParams.get('serieActivo');
+  
+  // Debug: mostrar parámetros de URL
+  console.log('Parámetros de URL - itemCode:', itemCode, 'clienteCodigo:', clienteCodigo, 'serieActivo:', serieActivo);
+
+  // Cargar choperas, clientes y pre-llenar datos si vienen de una chopera específica
+  useEffect(() => {
+    const loadData = async () => {
+      try {
+        // Cargar choperas y clientes en paralelo
+        const [choperasData, clientesData] = await Promise.all([
+          choperasService.getChoperas(),
+          clientesService.getClientes()
+        ]);
+        
+        setChoperas(choperasData);
+        setClientes(clientesData);
+        
+        // Si vienen parámetros de URL, pre-llenar los datos
+        if (itemCode) {
+          // Usar getChoperaDetalle con serieActivo específico si está disponible
+          let choperaEncontrada;
+          if (serieActivo && serieActivo.trim() !== '') {
+            console.log('Buscando chopera específica por serieActivo:', serieActivo);
+            choperaEncontrada = await choperasService.getChoperaDetalle(itemCode, serieActivo);
+          } else {
+            choperaEncontrada = choperasData.find(c => c.itemCode === itemCode);
+          }
+          
+          if (choperaEncontrada) {
+            setSelectedChopera(choperaEncontrada);
+            setFormData(prev => ({
+              ...prev,
+              itemCode: choperaEncontrada.itemCode,
+              choperaCode: choperaEncontrada.serieActivo
+            }));
+            
+            // Debug: mostrar qué datos tiene la chopera
+            console.log('🔍 DEBUG - NuevoMantenimiento - Chopera encontrada:', choperaEncontrada);
+            console.log('🔍 DEBUG - NuevoMantenimiento - Clientes cargados:', clientesData.length);
+            console.log('🔍 DEBUG - NuevoMantenimiento - cardCode de chopera:', choperaEncontrada.cardCode);
+            console.log('🔍 DEBUG - NuevoMantenimiento - cardName de chopera:', choperaEncontrada.cardName);
+            console.log('🔍 DEBUG - NuevoMantenimiento - aliasName de chopera:', choperaEncontrada.aliasName);
+           
+            // Si la chopera tiene cliente asociado, usarlo directamente
+            if (choperaEncontrada.cardCode && choperaEncontrada.cardCode.trim() !== '') {
+              console.log('Chopera tiene cardCode:', choperaEncontrada.cardCode);
+              setSelectedCliente(choperaEncontrada.cardCode);
+              setFormData(prev => ({
+                ...prev,
+                clienteCodigo: choperaEncontrada.cardCode
+              }));
+            } else if (choperaEncontrada.aliasName && choperaEncontrada.aliasName.trim() !== '') {
+              console.log('Chopera tiene aliasName:', choperaEncontrada.aliasName);
+              setSelectedCliente(choperaEncontrada.aliasName);
+              setFormData(prev => ({
+                ...prev,
+                clienteCodigo: choperaEncontrada.aliasName
+              }));
+            } else {
+              console.log('Chopera no tiene cliente asociado');
+            }
+            
+            // Si viene clienteCodigo en la URL, usarlo (tiene prioridad)
+            if (clienteCodigo && clienteCodigo.trim() !== '') {
+              console.log('Usando clienteCodigo de URL:', clienteCodigo);
+              setSelectedCliente(clienteCodigo);
+              setFormData(prev => ({
+                ...prev,
+                clienteCodigo: clienteCodigo
+              }));
+            }
+          }
+        }
+        
+      } catch (error) {
+        console.error('Error cargando datos:', error);
+      }
+    };
+    loadData();
+  }, [itemCode, clienteCodigo, serieActivo]); // Agregar serieActivo a las dependencias
 
   const handleNext = () => {
     if (validateCurrentStep()) {
@@ -78,11 +174,12 @@ export default function NuevoMantenimiento() {
     const newErrors: Record<string, string> = {};
 
     switch (currentStep) {
-      case 1:
-        if (!formData.fechaVisita) newErrors.fechaVisita = 'La fecha es requerida';
-        if (!formData.clienteCodigo) newErrors.clienteCodigo = 'El cliente es requerido';
-        if (!formData.choperaId) newErrors.choperaId = 'La chopera es requerida';
-        break;
+             case 1:
+         if (!formData.fechaVisita) newErrors.fechaVisita = 'La fecha es requerida';
+         if (!formData.itemCode || formData.itemCode.trim() === '') {
+           newErrors.itemCode = 'La chopera es requerida';
+         }
+         break;
       case 2:
         // Validar que al menos un item del checklist esté completado
         const checklistItems = Object.values(formData.checklist).flatMap(category => Object.values(category));
@@ -112,22 +209,45 @@ export default function NuevoMantenimiento() {
       
       // Log de depuración para ver qué datos se están enviando
       console.log('Datos a enviar:', formData);
+      console.log('Item Code:', formData.itemCode, 'Tipo:', typeof formData.itemCode);
       
       const result = await mantenimientosService.createMantenimiento(formData);
       
       console.log('Respuesta del servidor:', result);
       
-      // Mostrar mensaje de éxito y redirigir
-      alert('Mantenimiento creado exitosamente');
-      // Aquí podrías redirigir al dashboard o lista
+                   // Mostrar notificación de éxito y redirigir al dashboard específico de la chopera
+      showSuccess(
+        '✅ Mantenimiento creado exitosamente',
+        'Redirigiendo al dashboard de la chopera...',
+        3000
+      );
+      
+      // Redirigir al dashboard específico de la chopera si tenemos los datos
+      setTimeout(() => {
+        if (formData.itemCode && formData.choperaCode) {
+          // Redirigir al dashboard específico de la chopera
+          navigate(`/bendita/choperas/${formData.itemCode}/mantenimientos?serieActivo=${encodeURIComponent(formData.choperaCode)}`);
+        } else {
+          // Fallback al dashboard general si no tenemos datos específicos
+          navigate('/bendita/mantenimientos');
+        }
+      }, 2000);
     } catch (error) {
       console.error('Error creando mantenimiento:', error);
       
       // Mostrar información más detallada del error
       if (error instanceof Error) {
-        alert(`Error al crear el mantenimiento: ${error.message}`);
+        showError(
+          'Error al crear el mantenimiento',
+          error.message,
+          5000
+        );
       } else {
-        alert('Error al crear el mantenimiento');
+        showError(
+          'Error al crear el mantenimiento',
+          'Ha ocurrido un error inesperado. Por favor, inténtelo de nuevo.',
+          5000
+        );
       }
     } finally {
       setIsSubmitting(false);
@@ -207,34 +327,59 @@ export default function NuevoMantenimiento() {
                 </select>
               </div>
 
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Cliente *
-                </label>
-                <input
-                  type="text"
-                  value={formData.clienteCodigo}
-                  onChange={(e) => setFormData(prev => ({ ...prev, clienteCodigo: e.target.value }))}
-                  placeholder="Código del cliente"
-                  className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${
-                    errors.clienteCodigo ? 'border-red-500' : 'border-gray-300'
-                  }`}
-                />
-                {errors.clienteCodigo && <p className="text-red-500 text-sm mt-1">{errors.clienteCodigo}</p>}
-              </div>
+                             <div>
+                 <label className="block text-sm font-medium text-gray-700 mb-2">
+                   Cliente
+                 </label>
+                 {formData.clienteCodigo ? (
+                   <div className="w-full px-3 py-2 border border-gray-300 rounded-md bg-gray-50 text-gray-700">
+                     {formData.clienteCodigo}
+                   </div>
+                 ) : (
+                   <div className="w-full px-3 py-2 border border-gray-300 rounded-md bg-gray-50 text-gray-500">
+                     Sin cliente asignado
+                   </div>
+                 )}
+               </div>
 
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Chopera *
-                </label>
-                <SelectChoperas
-                  value={formData.choperaId || undefined}
-                  onChange={(value) => setFormData(prev => ({ ...prev, choperaId: value }))}
-                  placeholder="Seleccionar chopera..."
-                  className={errors.choperaId ? 'border-red-500' : ''}
-                />
-                {errors.choperaId && <p className="text-red-500 text-sm mt-1">{errors.choperaId}</p>}
-              </div>
+               <div>
+                 <label className="block text-sm font-medium text-gray-700 mb-2">
+                   Chopera *
+                 </label>
+                 {itemCode ? (
+                   <div className="w-full px-3 py-2 border border-gray-300 rounded-md bg-gray-50 text-gray-700">
+                     {selectedChopera ? (
+                       <div>
+                         <div className="font-medium">{selectedChopera.itemCode} - {selectedChopera.itemName}</div>
+                         <div className="text-sm text-gray-500">Serie: {selectedChopera.serieActivo}</div>
+                         {selectedChopera.aliasName && (
+                           <div className="text-sm text-gray-500">Alias: {selectedChopera.aliasName}</div>
+                         )}
+                       </div>
+                     ) : (
+                       formData.itemCode
+                     )}
+                   </div>
+                 ) : (
+                   <>
+                     <SelectChoperas
+                       value={formData.itemCode?.toString() || undefined}
+                       onChange={(value) => {
+                         // Encontrar la chopera seleccionada para obtener el choperaCode
+                         const selectedChopera = choperas.find(c => c.itemCode === value);
+                         setFormData(prev => ({ 
+                           ...prev, 
+                           itemCode: value,
+                           choperaCode: selectedChopera?.serieActivo || ''
+                         }));
+                       }}
+                       placeholder="Seleccionar chopera..."
+                       className={errors.itemCode ? 'border-red-500' : ''}
+                     />
+                     {errors.itemCode && <p className="text-red-500 text-sm mt-1">{errors.itemCode}</p>}
+                   </>
+                 )}
+               </div>
             </div>
           </div>
         );
@@ -357,8 +502,12 @@ export default function NuevoMantenimiento() {
                   <div className="space-y-2 text-sm">
                     <p><span className="font-medium">Fecha:</span> {formData.fechaVisita}</p>
                     <p><span className="font-medium">Cliente:</span> {formData.clienteCodigo}</p>
-                    <p><span className="font-medium">Chopera ID:</span> {formData.choperaId}</p>
-                    <p><span className="font-medium">Tipo ID:</span> {formData.tipoMantenimientoId}</p>
+                    <p><span className="font-medium">Chopera:</span> {formData.itemCode}</p>
+                    <p><span className="font-medium">Tipo:</span> {
+                      formData.tipoMantenimientoId === 1 ? 'Preventivo' :
+                      formData.tipoMantenimientoId === 2 ? 'Correctivo' :
+                      formData.tipoMantenimientoId === 3 ? 'Emergencia' : 'Desconocido'
+                    }</p>
                     <p><span className="font-medium">Estado General:</span> {formData.estadoGeneral}</p>
                   </div>
                 </div>
@@ -431,15 +580,29 @@ export default function NuevoMantenimiento() {
     }
   };
 
-  return (
+    return (
     <div className="p-6 space-y-6">
       {/* Header con Breadcrumb */}
       <div className="space-y-4">
-        
+        <Breadcrumb />
         <div className="flex items-center justify-between">
-
-        </div>
-      </div>
+           {itemCode && selectedChopera && (
+             <div className="flex items-center gap-3">
+               <div className="p-2 bg-blue-100 rounded-lg">
+                 <Package className="w-6 h-6 text-blue-600" />
+               </div>
+               <div>
+                 <h1 className="text-xl font-semibold text-gray-900">
+                   Nuevo Mantenimiento - {selectedChopera.cardCode} - {selectedChopera.aliasName}
+                 </h1>
+                 <p className="text-gray-600">
+                   {selectedChopera.itemName} | Serie: {selectedChopera.serieActivo}
+                 </p>
+               </div>
+             </div>
+           )}
+         </div>
+       </div>
 
       {/* Progress Steps */}
       <div className="bg-white p-6 rounded-lg border">

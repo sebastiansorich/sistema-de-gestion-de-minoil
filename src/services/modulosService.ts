@@ -5,14 +5,14 @@ export interface Modulo {
   nombre: string
   descripcion: string
   ruta: string
-  activo: boolean
+  activo: number | boolean // Compatible con backend (1/0 o true/false)
   createdAt: string
   updatedAt: string
   
   // Nuevos campos para estructura jerárquica
   padreId: number | null
   nivel: number
-  esMenu: boolean
+  esMenu: number | boolean // Compatible con backend (1/0 o true/false)
   icono: string | null
   orden: number
   submodulos?: Modulo[] // Submódulos completos (con todos los datos)
@@ -85,8 +85,15 @@ class ModulosService {
 
       const data = await handleApiResponse(response)
       
-      // La respuesta ya viene como array jerárquico
-      const modules: Modulo[] = Array.isArray(data) ? data : data.modulos || []
+      // La respuesta viene en formato { success: true, data: [...] }
+      const modules: Modulo[] = data.data || data.modulos || (Array.isArray(data) ? data : [])
+      
+      console.log('🔍 Procesamiento de datos:', {
+        hasDataProperty: data && typeof data === 'object' && 'data' in data,
+        dataDataLength: data.data?.length || 0,
+        modulesLength: modules.length,
+        firstModule: modules[0] ? { id: modules[0].id, nombre: modules[0].nombre } : null
+      })
       
       console.log('✅ Módulos sidebar cargados:', {
         total: modules.length,

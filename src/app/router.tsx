@@ -11,9 +11,10 @@ import PlanillaComisiones from "../features/rrhh/PlanillaComisiones";
 import Vacaciones from "../features/rrhh/Vacaciones";
 import Usuarios from "../features/usuarios/Usuarios";
 import RolesPermisos from "../features/usuarios/RolesPermisos";
-import Cargos from "../features/usuarios/Cargos";
+// Removed import for deleted Cargos component
 import Choperas from "../features/bendita/Choperas";
 import MantenimientosDashboard from "../features/bendita/MantenimientosDashboard";
+import MantenimientosPorChopera from "../features/bendita/MantenimientosPorChopera";
 import NuevoMantenimiento from "../features/bendita/NuevoMantenimiento";
 import ListaMantenimientos from "../features/bendita/ListaMantenimientos";
 import { useAuth } from "../contexts/AuthContext";
@@ -22,7 +23,7 @@ import { hasPermission } from "../lib/utils";
 
 interface PrivateRouteProps {
   children: React.ReactNode;
-  permission: string;
+  permission: string | null;
 }
 
 function PrivateRoute({ children, permission }: PrivateRouteProps) {
@@ -59,56 +60,52 @@ export default function AppRouter() {
               <Routes>
                 <Route path="/" element={<Home />} />
                 <Route path="/salidas/ingresar" element={
-                  <PrivateRoute permission="salidas de producto">
+                  <PrivateRoute permission={null}>
                     <IngresarSalida />
                   </PrivateRoute>
                 } />
                 <Route path="/salidas/gestionar" element={
-                  <PrivateRoute permission="salidas de producto">
+                  <PrivateRoute permission={null}>
                     <GestionarSalidas />
                   </PrivateRoute>
                 } />
                 <Route path="/marketing/mercaderistas" element={
-                  <PrivateRoute permission="marketing/comisiones">
+                  <PrivateRoute permission={null}>
                     <Mercaderistas />
                   </PrivateRoute>
                 } />
                 <Route path="/marketing/reportes-sala" element={
-                  <PrivateRoute permission="marketing/comisiones">
+                  <PrivateRoute permission={null}>
                     <ReportesSala />
                   </PrivateRoute>
                 } />
                 <Route path="/rrhh/planilla-comisiones" element={
-                  <PrivateRoute permission="recursos humanos">
+                  <PrivateRoute permission={null}>
                     <PlanillaComisiones />
                   </PrivateRoute>
                 } />
                 <Route path="/rrhh/vacaciones" element={
-                  <PrivateRoute permission="recursos humanos">
+                  <PrivateRoute permission={null}>
                     <Vacaciones />
                   </PrivateRoute>
                 } />
                 <Route path="/usuarios" element={
-                  <PrivateRoute permission="usuarios">
+                  <PrivateRoute permission={null}>
                     <Usuarios />
                   </PrivateRoute>
                 } />
                 <Route path="/usuarios/roles" element={
-                  <PrivateRoute permission="usuarios">
+                  <PrivateRoute permission={null}>
                     <RolesPermisos />
                   </PrivateRoute>
                 } />
-                <Route path="/usuarios/cargos" element={
-                  <PrivateRoute permission="usuarios">
-                    <Cargos />
-                  </PrivateRoute>
-                } />
-                <Route path="/usuarios/empleados" element={
-                  <PrivateRoute permission="usuarios">
+                <Route path="/usuarios/usuarios" element={
+                  <PrivateRoute permission={null}>
                     <Usuarios />
                   </PrivateRoute>
                 } />
                 <Route path="/bendita/choperas" element={<Choperas />} />
+                <Route path="/bendita/choperas/:itemCode/mantenimientos" element={<MantenimientosPorChopera />} />
                 <Route path="/bendita/mantenimientos" element={<MantenimientosDashboard />} />
                 <Route path="/bendita/mantenimientos/nuevo" element={<NuevoMantenimiento />} />
                 <Route path="/bendita/mantenimientos/lista" element={<ListaMantenimientos />} />

@@ -23,7 +23,7 @@ import {
   TableRow,
   TableCell,
 } from "../../components/ui";
-import { SelectSedes, SelectAreas, SelectCargos } from "../../components/ui";
+// Removed imports for deleted select components
 
 // Interfaces para los datos de mercaderistas
 interface Mercaderista {
@@ -426,10 +426,12 @@ export default function Mercaderistas() {
                   
                   <TableCell>
                     {editIdx === idx ? (
-                      <SelectSedes
+                      <input
+                        type="text"
                         value={row.sedeId || ""}
-                        onChange={(value) => handleChange(idx, "sedeId", value)}
-                        className="w-full"
+                        onChange={(e) => handleChange(idx, "sedeId", e.target.value)}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        placeholder="ID de Sede"
                       />
                     ) : (
                       <span className="text-sm text-gray-600">
@@ -440,10 +442,12 @@ export default function Mercaderistas() {
                   
                   <TableCell>
                     {editIdx === idx ? (
-                      <SelectAreas
+                      <input
+                        type="text"
                         value={row.areaId || ""}
-                        onChange={(value) => handleChange(idx, "areaId", value)}
-                        className="w-full"
+                        onChange={(e) => handleChange(idx, "areaId", e.target.value)}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        placeholder="ID de Área"
                       />
                     ) : (
                       <span className="text-sm text-gray-600">
@@ -454,10 +458,12 @@ export default function Mercaderistas() {
                   
                   <TableCell>
                     {editIdx === idx ? (
-                      <SelectCargos
+                      <input
+                        type="text"
                         value={row.cargoId || ""}
-                        onChange={(value) => handleChange(idx, "cargoId", value)}
-                        className="w-full"
+                        onChange={(e) => handleChange(idx, "cargoId", e.target.value)}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        placeholder="ID de Cargo"
                       />
                     ) : (
                       <span className="text-sm text-gray-600">
