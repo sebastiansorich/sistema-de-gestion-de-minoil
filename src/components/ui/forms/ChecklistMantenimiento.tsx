@@ -13,20 +13,20 @@ const checklistItems = {
     title: 'Limpieza',
     icon: '🧹',
     items: [
-      { key: 'grifos', label: 'Grifos limpios y desinfectados' },
-      { key: 'tuberias', label: 'Tuberías sin residuos' },
-      { key: 'tanque', label: 'Tanque de cerveza limpio' },
-      { key: 'conexiones', label: 'Conexiones sanitizadas' }
+      { key: 'grifos', label: 'Desarmado y Limpieza de Grifos' },
+      { key: 'tuberias', label: 'Limpieza general del área y del equipo' },
+      { key: 'tanque', label: 'Pasada de soda cáustica (solución adecuada)' },
+      { key: 'conexiones', label: 'Aplicación de desinfectante autorizado' }
     ]
   },
   funcionamiento: {
     title: 'Funcionamiento',
     icon: '⚙️',
     items: [
-      { key: 'presion', label: 'Presión correcta del sistema' },
-      { key: 'temperatura', label: 'Temperatura de refrigeración' },
-      { key: 'flujo', label: 'Flujo de cerveza uniforme' },
-      { key: 'valvulas', label: 'Válvulas funcionando correctamente' }
+      { key: 'presion', label: 'Confirmar que todos los componentes están correctamente armados y ajustados' },
+      { key: 'temperatura', label: 'Revisar que no haya residuos o restos de productos químicos en el sistema' },
+      { key: 'flujo', label: 'Verificación de la temperatura de la cerveza en el punto de servicio' },
+      { key: 'valvulas', label: 'Comprobación del funcionamiento correcto de los grifos y sistema de enfriamiento' }
     ]
   },
   seguridad: {
