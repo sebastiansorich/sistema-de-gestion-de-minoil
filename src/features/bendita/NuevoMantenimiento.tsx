@@ -582,9 +582,7 @@ export default function NuevoMantenimiento() {
 
     return (
     <div className="p-6 space-y-6">
-      {/* Header con Breadcrumb */}
       <div className="space-y-4">
-        <Breadcrumb />
         <div className="flex items-center justify-between">
            {itemCode && selectedChopera && (
              <div className="flex items-center gap-3">
