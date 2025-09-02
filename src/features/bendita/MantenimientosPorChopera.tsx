@@ -402,13 +402,13 @@ export default function MantenimientosPorChopera() {
 
   if (error) {
     return (
-      <div className="p-6">
-        <div className="flex items-center p-4 mb-4 text-red-800 border border-red-300 rounded-lg bg-red-50">
-          <AlertCircle className="w-5 h-5 mr-2" />
-          <span>{error}</span>
+      <div className="p-3 sm:p-6">
+        <div className="flex flex-col sm:flex-row sm:items-center p-4 mb-4 text-red-800 border border-red-300 rounded-lg bg-red-50">
+          <AlertCircle className="w-5 h-5 mr-2 mb-2 sm:mb-0" />
+          <span className="text-sm sm:text-base">{error}</span>
           <Button
             onClick={loadChoperaData}
-            className="ml-4"
+            className="mt-2 sm:mt-0 sm:ml-4 w-full sm:w-auto"
             variant="outline"
             size="sm"
           >
@@ -420,45 +420,52 @@ export default function MantenimientosPorChopera() {
   }
 
   return (
-    <div className="p-6 space-y-4">
+    <div className="p-3 sm:p-6 space-y-3 sm:space-y-4">
       {/* Header */}
       <div className="space-y-0">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-4">
+        <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
+          <div className="flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4">
             <Button
               onClick={() => navigate('/bendita/choperas')}
               variant="outline"
               size="sm"
-              className="flex items-center gap-2"
+              className="flex items-center gap-2 w-full sm:w-auto"
             >
               <ArrowLeft className="w-4 h-4" />
-              Volver
+              <span className="hidden sm:inline">Volver</span>
+              <span className="sm:hidden">Volver</span>
             </Button>
 
             {chopera && (
-              <div className="flex items-center gap-3">
-                <Package className="w-6 h-6 text-blue-600" />
-                <div>
-                  <h1 className="text-2xl font-bold text-gray-900">
-                    Mantenimientos - {chopera.itemCode} - {chopera.cardCode} - {chopera.aliasName}
-                  </h1>
-                  <p className="text-gray-600">
-                    {chopera.itemName} | Serie: {chopera.serieActivo}
-                  </p>
+              <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3">
+                <div className="flex items-start gap-2 sm:gap-3">
+                  <Package className="w-5 h-5 sm:w-6 sm:h-6 text-blue-600 flex-shrink-0 mt-1" />
+                  <div className="min-w-0 flex-1">
+                    <h1 className="text-lg sm:text-xl lg:text-2xl font-bold text-gray-900 leading-tight">
+                      <span className="block sm:inline">Mantenimientos</span>
+                      <span className="block sm:inline">- {chopera.itemCode}</span>
+                      <span className="block sm:inline">- {chopera.cardCode}</span>
+                      <span className="block sm:inline">- {chopera.aliasName}</span>
+                    </h1>
+                    <p className="text-sm sm:text-base text-gray-600 mt-1 break-words">
+                      {chopera.itemName} | Serie: {chopera.serieActivo}
+                    </p>
+                  </div>
                 </div>
               </div>
             )}
           </div>
 
-          <div className="flex gap-2">
+          <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
             <Button
               onClick={handleRefresh}
               variant="outline"
-              className="flex items-center gap-2"
+              className="flex items-center justify-center gap-2 w-full sm:w-auto"
               disabled={isLoading}
             >
               <RefreshCw className={`w-4 h-4 ${isLoading ? 'animate-spin' : ''}`} />
-              Actualizar
+              <span className="hidden sm:inline">Actualizar</span>
+              <span className="sm:hidden">Actualizar</span>
             </Button>
             <Button
               onClick={async () => {
@@ -483,10 +490,11 @@ export default function MantenimientosPorChopera() {
                 console.log('chopera?.serieActivo:', chopera?.serieActivo);
                 navigate(url);
               }}
-              className="flex items-center gap-2 bg-amber-200"
+              className="flex items-center justify-center gap-2 bg-amber-200 w-full sm:w-auto"
             >
               <Plus className="w-4 h-4" />
-              Nuevo
+              <span className="hidden sm:inline">Nuevo</span>
+              <span className="sm:hidden">Nuevo</span>
             </Button>
           </div>
         </div>
@@ -547,15 +555,15 @@ export default function MantenimientosPorChopera() {
 
       {/* Gráfico de tendencias */}
       {stats && (
-        <div className="bg-white p-6 rounded-lg border">
+        <div className="bg-white p-3 sm:p-6 rounded-lg border">
           <div className="flex items-center justify-between mb-4">
-            <h3 className="text-lg font-semibold text-gray-900">Mantenimientos por Mes</h3>
-            <TrendingUp className="w-5 h-5 text-gray-400" />
+            <h3 className="text-base sm:text-lg font-semibold text-gray-900">Mantenimientos por Mes</h3>
+            <TrendingUp className="w-4 h-4 sm:w-5 sm:h-5 text-gray-400" />
           </div>
 
           {stats.mantenimientosPorMes.length > 0 ? (
             <>
-              <div className="h-64 flex items-end justify-between space-x-2 relative">
+              <div className="h-48 sm:h-64 flex items-end justify-between space-x-1 sm:space-x-2 relative overflow-x-auto pb-4">
                 {stats.mantenimientosPorMes.map((item, index) => {
                   const maxCompletados = Math.max(...stats.mantenimientosPorMes.map(d => d.completados));
                   const maxPreventivos = Math.max(...stats.mantenimientosPorMes.map(d => d.preventivos));
@@ -566,7 +574,7 @@ export default function MantenimientosPorChopera() {
                   return (
                     <div
                       key={index}
-                      className="flex-1 flex flex-col items-center relative group"
+                      className="flex-1 min-w-[35px] xs:min-w-[40px] sm:min-w-[50px] flex flex-col items-center relative group"
                       onMouseEnter={() => setHoveredMonth(`${item.mes}-${item.año}`)}
                       onMouseLeave={() => setHoveredMonth(null)}
                     >
@@ -588,27 +596,27 @@ export default function MantenimientosPorChopera() {
                           }}
                         />
                       </div>
-                      <p className="text-xs text-gray-600 mt-2">
+                      <p className="text-xs text-gray-600 mt-2 text-center">
                         {item.mes}
                       </p>
 
                       {/* Tooltip */}
                       {hoveredMonth === `${item.mes}-${item.año}` && item.mantenimientosDetalle.length > 0 && (
                         <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 z-10">
-                          <div className="bg-gray-900 text-white p-3 rounded-lg shadow-lg max-w-xs">
+                          <div className="bg-gray-900 text-white p-2 sm:p-3 rounded-lg shadow-lg max-w-[280px] sm:max-w-xs">
                             <div className="text-sm font-semibold mb-2">
                               {item.mes} {item.año} - {item.completados} mantenimiento{item.completados !== 1 ? 's' : ''}
                             </div>
                             <div className="space-y-1 text-xs">
                               {item.mantenimientosDetalle.map((mant, idx) => (
-                                                                 <div key={idx} className="border-t border-gray-700 pt-1 first:border-t-0 first:pt-0">
-                                   <div className="flex justify-between">
-                                     <span className="font-medium">{chopera?.cardCode || mant.cliente}</span>
-                                     <span className="text-gray-300">{new Date(mant.fecha).toLocaleDateString()}</span>
-                                   </div>
-                                   <div className="text-gray-300">{mant.tipo}</div>
-                                   <div className="text-gray-400 text-xs">Técnico: {mant.tecnico}</div>
-                                 </div>
+                                <div key={idx} className="border-t border-gray-700 pt-1 first:border-t-0 first:pt-0">
+                                  <div className="flex flex-col sm:flex-row sm:justify-between gap-1 sm:gap-0">
+                                    <span className="font-medium truncate">{chopera?.cardCode || mant.cliente}</span>
+                                    <span className="text-gray-300 text-xs">{new Date(mant.fecha).toLocaleDateString()}</span>
+                                  </div>
+                                  <div className="text-gray-300 truncate">{mant.tipo}</div>
+                                  <div className="text-gray-400 text-xs truncate">Técnico: {mant.tecnico}</div>
+                                </div>
                               ))}
                             </div>
                             <div className="absolute top-full left-1/2 transform -translate-x-1/2 w-0 h-0 border-l-4 border-r-4 border-t-4 border-transparent border-t-gray-900"></div>
@@ -620,61 +628,66 @@ export default function MantenimientosPorChopera() {
                 })}
               </div>
 
-              <div className="flex justify-center space-x-6 mt-4">
-                <div className="flex items-center">
+              <div className="flex flex-col sm:flex-row justify-center sm:space-x-6 mt-4 space-y-2 sm:space-y-0">
+                <div className="flex items-center justify-center sm:justify-start">
                   <div className="w-3 h-3 bg-blue-500 rounded mr-2"></div>
                   <span className="text-sm text-gray-600">Total</span>
                 </div>
-                <div className="flex items-center">
+                <div className="flex items-center justify-center sm:justify-start">
                   <div className="w-3 h-3 bg-green-500 rounded mr-2"></div>
                   <span className="text-sm text-gray-600">Preventivos</span>
                 </div>
               </div>
+              
+
+
             </>
-          ) : (
-            <div className="h-64 flex items-center justify-center">
-              <div className="text-center">
-                <BarChart3 className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-                <p className="text-gray-500">No hay datos de mantenimientos para mostrar</p>
-                <p className="text-sm text-gray-400">Esta chopera aún no ha tenido mantenimientos registrados</p>
-              </div>
+                  ) : (
+          <div className="h-48 sm:h-64 flex items-center justify-center p-4">
+            <div className="text-center">
+              <BarChart3 className="w-8 h-8 sm:w-12 sm:h-12 text-gray-400 mx-auto mb-4" />
+              <p className="text-sm sm:text-base text-gray-500">No hay datos de mantenimientos para mostrar</p>
+              <p className="text-xs sm:text-sm text-gray-400 mt-1">Esta chopera aún no ha tenido mantenimientos registrados</p>
             </div>
-          )}
+          </div>
+        )}
         </div>
       )}
 
       {/* Mantenimientos recientes */}
       <div className="bg-white rounded-lg border">
-        <div className="p-6 border-b">
-          <div className="flex items-center justify-between">
-            <h3 className="text-lg font-semibold text-gray-900">Mantenimientos Recientes</h3>
-            <div className="flex gap-2">
-              <div className="relative">
+        <div className="p-3 sm:p-6 border-b">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-0">
+            <h3 className="text-base sm:text-lg font-semibold text-gray-900">Mantenimientos Recientes</h3>
+            <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
+              <div className="relative w-full sm:w-auto">
                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
                 <input
                   type="text"
                   placeholder="Buscar mantenimientos..."
-                  className="pl-10 pr-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="w-full sm:w-64 pl-10 pr-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
                 />
               </div>
-              <Button variant="outline" size="sm">
-                <Filter className="w-4 h-4" />
+              <Button variant="outline" size="sm" className="w-full sm:w-auto">
+                <Filter className="w-4 h-4 mr-2" />
+                <span className="hidden sm:inline">Filtros</span>
+                <span className="sm:hidden">Filtrar</span>
               </Button>
             </div>
           </div>
         </div>
 
         {isLoading ? (
-          <div className="flex items-center justify-center p-8">
-            <Loader2 className="w-6 h-6 animate-spin mr-2" />
-            <span>Cargando mantenimientos...</span>
+          <div className="flex items-center justify-center p-4 sm:p-6 lg:p-8">
+            <Loader2 className="w-5 h-5 sm:w-6 sm:h-6 animate-spin mr-2" />
+            <span className="text-sm sm:text-base">Cargando mantenimientos...</span>
           </div>
         ) : recentMantenimientos.length === 0 ? (
-          <div className="flex items-center justify-center p-8">
-            <div className="text-center">
-              <Wrench className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-              <p className="text-gray-500">No hay mantenimientos registrados</p>
-              <p className="text-sm text-gray-400 mb-4">Esta chopera aún no ha tenido mantenimientos</p>
+          <div className="flex items-center justify-center p-4 sm:p-6 lg:p-8">
+            <div className="text-center px-4">
+              <Wrench className="w-8 h-8 sm:w-12 sm:h-12 text-gray-400 mx-auto mb-4" />
+              <p className="text-sm sm:text-base text-gray-500 mb-2">No hay mantenimientos registrados</p>
+              <p className="text-xs sm:text-sm text-gray-400 mb-4">Esta chopera aún no ha tenido mantenimientos</p>
               <Button
                 onClick={async () => {
                   // Recargar datos de la chopera antes de navegar
@@ -697,49 +710,54 @@ export default function MantenimientosPorChopera() {
                   console.log('URL generada (primer mantenimiento):', url);
                   navigate(url);
                 }}
-                className="flex items-center gap-2 text-white"
+                className="flex items-center justify-center gap-2 text-white w-full sm:w-auto"
               >
                 <Plus className="w-4 h-4" />
-                Registrar primer mantenimiento
+                <span className="hidden sm:inline">Registrar primer mantenimiento</span>
+                <span className="sm:hidden">Primer mantenimiento</span>
               </Button>
             </div>
           </div>
         ) : (
           <div className="divide-y">
             {recentMantenimientos.map((mantenimiento) => (
-              <div key={mantenimiento.id} className="p-6 hover:bg-gray-50 transition-colors">
-                <div className="flex items-center justify-between">
-                  <div className="flex-1">
-                    <div className="flex items-center gap-3 mb-2">
-                      <h4 className="font-medium text-gray-900">
+              <div key={mantenimiento.id} className="p-3 sm:p-6 hover:bg-gray-50 transition-colors">
+                <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-3 lg:gap-0">
+                  <div className="flex-1 min-w-0">
+                    <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3 mb-2">
+                      <h4 className="font-medium text-gray-900 text-sm sm:text-base leading-tight">
                         Cliente: {chopera?.cardCode || mantenimiento.clienteCodigo} - Chopera: {chopera?.serieActivo || mantenimiento.chopera.serieActivo}
                       </h4>
-                      <span className={`px-2 py-1 text-xs rounded-full flex items-center gap-1 ${getEstadoColor(mantenimiento.estadoGeneral)}`}>
+                      <span className={`px-2 py-1 text-xs rounded-full flex items-center gap-1 w-fit ${getEstadoColor(mantenimiento.estadoGeneral)}`}>
                         {getEstadoIcon(mantenimiento.estadoGeneral)}
-                        {mantenimiento.estadoGeneral}
+                        <span className="hidden sm:inline">{mantenimiento.estadoGeneral}</span>
+                        <span className="sm:hidden">{mantenimiento.estadoGeneral.charAt(0)}</span>
                       </span>
                     </div>
 
-                    <div className="flex items-center gap-4 text-sm text-gray-600">
+                    <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4 text-xs sm:text-sm text-gray-600">
                       <span className="flex items-center gap-1">
-                        <Calendar className="w-4 h-4" />
+                        <Calendar className="w-3 h-3 sm:w-4 sm:h-4 flex-shrink-0" />
                         {new Date(mantenimiento.fechaVisita).toLocaleDateString()}
                       </span>
                       <span className="flex items-center gap-1">
-                        <BarChart3 className="w-4 h-4" />
-                        {mantenimiento.tipoMantenimiento.nombre}
+                        <BarChart3 className="w-3 h-3 sm:w-4 sm:h-4 flex-shrink-0" />
+                        <span className="truncate">{mantenimiento.tipoMantenimiento.nombre}</span>
                       </span>
-                      <span>Técnico: {mantenimiento.usuario.nombre} {mantenimiento.usuario.apellido}</span>
+                      <span className="flex items-center gap-1">
+                        <span className="hidden sm:inline">Técnico:</span>
+                        <span className="truncate">{mantenimiento.usuario.nombre} {mantenimiento.usuario.apellido}</span>
+                      </span>
                     </div>
 
                     {mantenimiento.comentarioEstado && (
-                      <p className="text-sm text-gray-600 mt-2 line-clamp-2">
+                      <p className="text-xs sm:text-sm text-gray-600 mt-2 line-clamp-2">
                         {mantenimiento.comentarioEstado}
                       </p>
                     )}
                   </div>
 
-                  <div className="flex gap-2 ml-4">
+                  <div className="flex flex-col sm:flex-row gap-2 lg:ml-4 w-full sm:w-auto">
                     <Button
                       variant="outline"
                       size="sm"
@@ -747,8 +765,10 @@ export default function MantenimientosPorChopera() {
                         setSelectedMantenimiento(mantenimiento);
                         setIsVerModalOpen(true);
                       }}
+                      className="w-full sm:w-auto"
                     >
-                      Ver
+                      <span className="hidden sm:inline">Ver</span>
+                      <span className="sm:hidden">👁️</span>
                     </Button>
                     <Button
                       variant="outline"
@@ -757,16 +777,19 @@ export default function MantenimientosPorChopera() {
                         setSelectedMantenimiento(mantenimiento);
                         setIsEditarModalOpen(true);
                       }}
+                      className="w-full sm:w-auto"
                     >
-                      Editar
+                      <span className="hidden sm:inline">Editar</span>
+                      <span className="sm:hidden">✏️</span>
                     </Button>
                     <Button
                       variant="outline"
                       size="sm"
                       onClick={() => handleDelete(mantenimiento)}
-                      className="text-red-600 hover:text-red-700 hover:bg-red-50 border-red-700"
+                      className="text-red-600 hover:text-red-700 hover:bg-red-50 border-red-700 w-full sm:w-auto"
                     >
                       <Trash2 className="w-4 h-4" />
+                      <span className="hidden sm:inline ml-2">Eliminar</span>
                     </Button>
                   </div>
                 </div>
