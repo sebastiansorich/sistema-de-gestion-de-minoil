@@ -16,7 +16,8 @@ const checklistItems = {
       { key: 'grifos', label: 'Desarmado y Limpieza de Grifos' },
       { key: 'tuberias', label: 'Limpieza general del área y del equipo' },
       { key: 'tanque', label: 'Pasada de soda cáustica (solución adecuada)' },
-      { key: 'conexiones', label: 'Aplicación de desinfectante autorizado' }
+      { key: 'conexiones', label: 'Enjuague completo con agua limpia después de soda cáustica' },   
+      { key: 'desinfección', label: 'Pasada de solución con fenolftaleína para verificar limpieza y desinfección' }
     ]
   },
   funcionamiento: {
@@ -29,15 +30,7 @@ const checklistItems = {
       { key: 'valvulas', label: 'Comprobación del funcionamiento correcto de los grifos y sistema de enfriamiento' }
     ]
   },
-  seguridad: {
-    title: 'Seguridad',
-    icon: '🛡️',
-    items: [
-      { key: 'fugas', label: 'Sin fugas de gas o líquidos' },
-      { key: 'conexionesElectricas', label: 'Conexiones eléctricas seguras' },
-      { key: 'estabilidad', label: 'Equipo estable y fijo' }
-    ]
-  }
+
 };
 
 export default function ChecklistMantenimientoComponent({ 
@@ -155,8 +148,10 @@ export default function ChecklistMantenimientoComponent({
               <div className="p-6">
                 <div className="space-y-3">
                   {category.items.map((item) => {
-                    const isChecked = checklist[categoryKey as keyof ChecklistMantenimiento][item.key as keyof typeof checklist[typeof categoryKey]];
-                    
+                    // Solución: forzar el tipado correcto para evitar el error de indexación
+                    const categoryChecklist = checklist[categoryKey as keyof ChecklistMantenimiento] as Record<string, boolean>;
+                    const isChecked = categoryChecklist[item.key];
+
                     return (
                       <div 
                         key={item.key}

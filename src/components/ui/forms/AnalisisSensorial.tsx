@@ -23,17 +23,12 @@ interface AnalisisSensorialProps {
 }
 
 const tiposCerveza = [
-  'Lager',
-  'Pilsner',
   'IPA',
-  'Stout',
-  'Porter',
-  'Wheat Beer',
-  'Ale',
-  'Pale Ale',
-  'Amber Ale',
-  'Brown Ale',
-  'Otro'
+  'Hoppy Lager',
+  'Lemon Drop',
+  'Pils',
+  'Juicy IPA',
+
 ];
 
 const AnalisisSensorial: React.FC<AnalisisSensorialProps> = ({
@@ -41,12 +36,17 @@ const AnalisisSensorial: React.FC<AnalisisSensorialProps> = ({
   onChange,
   disabled = false
 }) => {
-  const [grifos, setGrifos] = useState(data.grifos || []);
+  const [grifos, setGrifos] = useState(
+    (data.grifos || []).map((g, idx) => ({
+      ...g,
+      numero: g.numero && g.numero.trim() !== '' ? g.numero : `Grifo ${idx + 1}`
+    }))
+  );
 
   const addGrifo = () => {
     const newGrifo = {
       id: `grifo-${Date.now()}`,
-      numero: '',
+      numero: `Grifo ${grifos.length + 1}`,
       tipoCerveza: '',
       apariencia: 0,
       aroma: 0,
@@ -55,7 +55,7 @@ const AnalisisSensorial: React.FC<AnalisisSensorialProps> = ({
       temperatura: 0,
       observaciones: ''
     };
-    
+
     const updatedGrifos = [...grifos, newGrifo];
     setGrifos(updatedGrifos);
     onChange({ grifos: updatedGrifos });
@@ -63,12 +63,16 @@ const AnalisisSensorial: React.FC<AnalisisSensorialProps> = ({
 
   const removeGrifo = (id: string) => {
     const updatedGrifos = grifos.filter(grifo => grifo.id !== id);
-    setGrifos(updatedGrifos);
-    onChange({ grifos: updatedGrifos });
+    const reindexedGrifos = updatedGrifos.map((g, idx) => ({
+      ...g,
+      numero: `Grifo ${idx + 1}`
+    }));
+    setGrifos(reindexedGrifos);
+    onChange({ grifos: reindexedGrifos });
   };
 
   const updateGrifo = (id: string, field: string, value: any) => {
-    const updatedGrifos = grifos.map(grifo => 
+    const updatedGrifos = grifos.map(grifo =>
       grifo.id === id ? { ...grifo, [field]: value } : grifo
     );
     setGrifos(updatedGrifos);
@@ -84,11 +88,10 @@ const AnalisisSensorial: React.FC<AnalisisSensorialProps> = ({
             type="button"
             onClick={() => onChange(star)}
             disabled={disabled}
-            className={`p-1 transition-colors ${
-              star <= value 
-                ? 'text-yellow-400 hover:text-yellow-500' 
-                : 'text-gray-300 hover:text-gray-400'
-            }`}
+            className={`p-1 transition-colors ${star <= value
+              ? 'text-yellow-400 hover:text-yellow-500'
+              : 'text-gray-300 hover:text-gray-400'
+              }`}
           >
             <Star className="w-4 h-4 fill-current" />
           </button>
@@ -98,10 +101,12 @@ const AnalisisSensorial: React.FC<AnalisisSensorialProps> = ({
   };
 
   const getPromedioGrifo = (grifo: any) => {
-    const valores = [grifo.apariencia, grifo.aroma, grifo.sabor, grifo.textura, grifo.temperatura];
+    const valores = [grifo.apariencia, grifo.aroma, grifo.sabor];
     const promedio = valores.reduce((sum, val) => sum + val, 0) / valores.length;
     return promedio.toFixed(1);
   };
+
+  const getCumpleTexto = (valor: number) => (valor >= 3 ? 'Cumple' : 'No cumple');
 
   return (
     <div className="space-y-6">
@@ -161,7 +166,7 @@ const AnalisisSensorial: React.FC<AnalisisSensorialProps> = ({
                     <input
                       type="text"
                       value={grifo.numero}
-                      onChange={(e) => updateGrifo(grifo.id, 'numero', e.target.value)}
+                      readOnly
                       disabled={disabled}
                       className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                       placeholder="Ej: G01"
@@ -194,34 +199,30 @@ const AnalisisSensorial: React.FC<AnalisisSensorialProps> = ({
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-1">
                         Apariencia
+                        <span className="ml-2 text-xs font-semibold ${grifo.apariencia >= 3 ? 'text-green-600' : 'text-red-600'}">
+                          {getCumpleTexto(grifo.apariencia)}
+                        </span>
                       </label>
                       {renderStars(grifo.apariencia, (value) => updateGrifo(grifo.id, 'apariencia', value))}
                     </div>
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-1">
                         Aroma
+                        <span className="ml-2 text-xs font-semibold ${grifo.aroma >= 3 ? 'text-green-600' : 'text-red-600'}">
+                          {getCumpleTexto(grifo.aroma)}
+                        </span>
                       </label>
                       {renderStars(grifo.aroma, (value) => updateGrifo(grifo.id, 'aroma', value))}
                     </div>
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-1">
                         Sabor
+                        <span className="ml-2 text-xs font-semibold ${grifo.sabor >= 3 ? 'text-green-600' : 'text-red-600'}">
+                          {getCumpleTexto(grifo.sabor)}
+                        </span>
                       </label>
                       {renderStars(grifo.sabor, (value) => updateGrifo(grifo.id, 'sabor', value))}
                     </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">
-                        Textura
-                      </label>
-                      {renderStars(grifo.textura, (value) => updateGrifo(grifo.id, 'textura', value))}
-                    </div>
-                  </div>
-                  
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Temperatura
-                    </label>
-                    {renderStars(grifo.temperatura, (value) => updateGrifo(grifo.id, 'temperatura', value))}
                   </div>
                 </div>
               </div>
@@ -241,13 +242,15 @@ const AnalisisSensorial: React.FC<AnalisisSensorialProps> = ({
                 />
               </div>
 
-              {/* Promedio */}
+              {/* Resultado por umbral de promedio */}
               <div className="mt-3 flex justify-end">
-                <div className="text-sm text-gray-600">
-                  <span className="font-medium">Promedio: </span>
-                  <span className="text-blue-600 font-semibold">
-                    {getPromedioGrifo(grifo)}/5
-                  </span>
+                <div className="text-sm">
+                  <span className="font-medium mr-1">Resultado:</span>
+                  {parseFloat(getPromedioGrifo(grifo)) >= 3 ? (
+                    <span className="text-green-600 font-semibold">Cumple</span>
+                  ) : (
+                    <span className="text-red-600 font-semibold">No cumple</span>
+                  )}
                 </div>
               </div>
             </div>
@@ -273,7 +276,7 @@ const AnalisisSensorial: React.FC<AnalisisSensorialProps> = ({
             <div>
               <span className="text-blue-700">Mejor Evaluado: </span>
               <span className="font-semibold text-blue-900">
-                {grifos.length > 0 ? grifos.reduce((best, current) => 
+                {grifos.length > 0 ? grifos.reduce((best, current) =>
                   parseFloat(getPromedioGrifo(current)) > parseFloat(getPromedioGrifo(best)) ? current : best
                 ).numero || 'N/A' : 'N/A'}
               </span>
