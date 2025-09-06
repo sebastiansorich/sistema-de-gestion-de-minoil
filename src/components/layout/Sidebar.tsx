@@ -247,6 +247,11 @@ export default function Sidebar() {
 	const [error, setError] = useState<string | null>(null)
 	const location = useLocation()
 	const { user } = useAuth()
+	
+	// Si no hay usuario, no renderizar el sidebar
+	if (!user) {
+		return null
+	}
 
 	// Cargar módulos desde el backend
 	useEffect(() => {

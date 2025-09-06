@@ -2,6 +2,8 @@ import React, { useState } from 'react'
 import { Eye, EyeOff, Loader2, AlertCircle, CheckCircle, Lock, ArrowLeft } from 'lucide-react'
 import { Button } from '../../components/ui/base/button'
 import FormValidation from '../../components/ui/forms/FormValidation'
+import { authService, type ChangePasswordRequest } from '../../services/authService'
+import { useAuth } from '../../contexts/AuthContext'
 
 interface ChangePasswordProps {
   onBack?: () => void
@@ -9,6 +11,9 @@ interface ChangePasswordProps {
 }
 
 const ChangePassword: React.FC<ChangePasswordProps> = ({ onBack, onSuccess }) => {
+  console.log('🔥 COMPONENTE ChangePassword RENDERIZADO')
+  const { user } = useAuth()
+  
   // Estados del formulario
   const [formData, setFormData] = useState({
     currentPassword: '',
@@ -100,6 +105,7 @@ const ChangePassword: React.FC<ChangePasswordProps> = ({ onBack, onSuccess }) =>
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
+    console.log('🔥 HANDLE SUBMIT INICIADO - ChangePassword.tsx')
 
     // Validar todos los campos
     const currentPasswordError = validateField('currentPassword', formData.currentPassword)
@@ -115,38 +121,74 @@ const ChangePassword: React.FC<ChangePasswordProps> = ({ onBack, onSuccess }) =>
       return
     }
 
+    // Validar que el usuario esté autenticado
+    if (!user?.username) {
+      console.log('❌ Usuario no autenticado:', user)
+      setErrors({ general: 'No se pudo obtener la información del usuario. Por favor, inicie sesión nuevamente.' })
+      return
+    }
+
+    console.log('✅ Usuario autenticado:', user.username)
     setIsSubmitting(true)
     setErrors({})
 
     try {
-      // Simular llamada a la API (aquí se integrará con la API real)
-      await new Promise(resolve => setTimeout(resolve, 2000))
+      console.log('🔄 Iniciando try block...')
+      const clientInfo = getClientInfo()
       
-      // Simular éxito
-      setSuccessMessage('¡Contraseña cambiada exitosamente!')
-      setFormData({
-        currentPassword: '',
-        newPassword: '',
-        confirmPassword: ''
-      })
+      const changePasswordRequest: ChangePasswordRequest = {
+        username: user.username,
+        currentPassword: formData.currentPassword,
+        newPassword: formData.newPassword,
+        confirmPassword: formData.confirmPassword,
+        clientIp: clientInfo.clientIp,
+        userAgent: clientInfo.userAgent
+      }
+
+      console.log('🔄 Llamando a authService.changePassword con:', changePasswordRequest)
+      const response = await authService.changePassword(changePasswordRequest)
+      console.log('📥 Respuesta recibida del authService:', response)
       
-      // Llamar callback de éxito si existe
-      if (onSuccess) {
-        setTimeout(() => {
-          onSuccess()
-        }, 1500)
+      if (response.success) {
+        console.log('✅ AuthService reportó éxito, mostrando mensaje de éxito')
+        setSuccessMessage(response.message || '¡Contraseña cambiada exitosamente!')
+        setFormData({
+          currentPassword: '',
+          newPassword: '',
+          confirmPassword: ''
+        })
+        
+        // Llamar callback de éxito si existe
+        if (onSuccess) {
+          setTimeout(() => {
+            onSuccess()
+          }, 1500)
+        }
+      } else {
+        console.log('❌ AuthService reportó fallo:', response.message)
+        setErrors({ general: response.message || 'Error al cambiar la contraseña. Intente nuevamente.' })
       }
       
     } catch (error) {
-      console.error('Error al cambiar contraseña:', error)
+      console.error('❌ ERROR EN CATCH - ChangePassword.tsx:', error)
+      console.error('❌ Stack trace:', error instanceof Error ? error.stack : 'No stack trace')
       setErrors({ general: 'Error al cambiar la contraseña. Intente nuevamente.' })
     } finally {
+      console.log('🔄 Finally block ejecutado')
       setIsSubmitting(false)
     }
   }
 
   const togglePasswordVisibility = (field: 'current' | 'new' | 'confirm') => {
     setShowPasswords(prev => ({ ...prev, [field]: !prev[field] }))
+  }
+
+  // Función helper para obtener información del cliente
+  const getClientInfo = () => {
+    return {
+      clientIp: '192.168.1.100', // En un entorno real, esto se obtendría del servidor
+      userAgent: navigator.userAgent
+    }
   }
 
   const strength = getPasswordStrength(formData.newPassword)
@@ -184,7 +226,7 @@ const ChangePassword: React.FC<ChangePasswordProps> = ({ onBack, onSuccess }) =>
         )}
 
         {/* Form */}
-        <form onSubmit={handleSubmit} className="p-6 space-y-4">
+        <form onSubmit={(e) => { console.log('🔥 FORM ONSUBMIT TRIGGERED'); handleSubmit(e); }} className="p-6 space-y-4">
           {/* Contraseña Actual */}
           <div className="space-y-2">
             <label htmlFor="currentPassword" className="block text-sm font-medium text-gray-700">
@@ -343,7 +385,8 @@ const ChangePassword: React.FC<ChangePasswordProps> = ({ onBack, onSuccess }) =>
             <Button
               type="submit"
               disabled={isSubmitting}
-              className="flex-1"
+              onClick={() => console.log('🔥 BOTÓN CLICKEADO')}
+              className="flex-1 bg-transparent hover:bg-gray-100 text-gray-800 border border-gray-300 hover:border-gray-400 opacity-80 hover:opacity-100 transition-all duration-200"
             >
               {isSubmitting ? (
                 <>

@@ -58,6 +58,21 @@ export interface LoginResponse {
   }
 }
 
+export interface ChangePasswordRequest {
+  username: string
+  currentPassword: string
+  newPassword: string
+  confirmPassword: string
+  clientIp: string
+  userAgent: string
+}
+
+export interface ChangePasswordResponse {
+  success: boolean
+  message: string
+  data?: any
+}
+
 class AuthService {
   // Método para procesar y mapear datos del usuario desde el backend
   private processUserData(rawUserData: any): AuthUser {
@@ -225,14 +240,14 @@ class AuthService {
     console.log('Logout realizado')
   }
 
-  async validateToken(token: string): Promise<boolean> {
+  async validateToken(_token: string): Promise<boolean> {
     // Función para validar token con el servidor si es necesario
     // Por ahora retorna true, implementar según necesidades
     try {
       // Podrías hacer una llamada al servidor para validar el token
       // const response = await fetch(buildUrl('/auth/validate'), {
       //   method: 'POST',
-      //   headers: { ...API_CONFIG.DEFAULT_HEADERS, 'Authorization': `Bearer ${token}` }
+      //   headers: { ...API_CONFIG.DEFAULT_HEADERS, 'Authorization': `Bearer ${_token}` }
       // })
       // return response.ok
       
@@ -261,6 +276,125 @@ class AuthService {
       return {
         success: false,
         message: diagnoseConnectionError(error)
+      }
+    }
+  }
+
+  async changePassword(request: ChangePasswordRequest): Promise<ChangePasswordResponse> {
+    console.log('🔥 MÉTODO changePassword INICIADO - authService.ts')
+    const url = buildUrl('/auth/change-password')
+    
+    try {
+      console.log('🚀 Enviando request de cambio de contraseña:')
+      console.log('📍 URL construida:', url)
+      console.log('🌐 Base URL configurada:', API_CONFIG.BASE_URL)
+      console.log('🔧 Modo desarrollo:', import.meta.env.DEV)
+      console.log('📋 Request completo:', {
+        url,
+        method: 'POST',
+        headers: API_CONFIG.DEFAULT_HEADERS,
+        body: request
+      })
+
+      const response = await fetch(url, {
+        method: 'POST',
+        headers: API_CONFIG.DEFAULT_HEADERS,
+        body: JSON.stringify(request)
+      })
+
+      console.log('📥 Respuesta recibida:', {
+        status: response.status,
+        statusText: response.statusText,
+        ok: response.ok,
+        url: response.url,
+        headers: Object.fromEntries(response.headers.entries())
+      })
+
+      // Validar que la respuesta sea exitosa (status 200-299)
+      if (!response.ok) {
+        console.error('❌ Error del servidor:', response.status, response.statusText)
+        
+        // Intentar obtener el mensaje de error del servidor
+        let errorMessage = 'Error del servidor'
+        try {
+          const errorData = await response.json()
+          errorMessage = errorData.message || errorData.error || `Error ${response.status}: ${response.statusText}`
+        } catch {
+          errorMessage = `Error ${response.status}: ${response.statusText}`
+        }
+        
+        return {
+          success: false,
+          message: errorMessage
+        }
+      }
+
+      // Parsear la respuesta manualmente para mejor control
+      let data
+      try {
+        const contentType = response.headers.get('content-type')
+        if (contentType && contentType.includes('application/json')) {
+          data = await response.json()
+        } else {
+          data = await response.text()
+        }
+        console.log('✅ Datos parseados:', data)
+      } catch (parseError) {
+        console.error('❌ Error al parsear respuesta:', parseError)
+        return {
+          success: false,
+          message: 'Error al procesar la respuesta del servidor'
+        }
+      }
+
+      // Validar que la respuesta tenga la estructura esperada
+      if (!data || typeof data !== 'object') {
+        console.error('❌ Respuesta del servidor inválida:', data)
+        return {
+          success: false,
+          message: 'Respuesta del servidor inválida'
+        }
+      }
+
+      // Verificar si el servidor indica éxito en su respuesta
+      // Solo considerar éxito si el servidor explícitamente retorna success: true
+      console.log('🔍 Validando respuesta del servidor:', {
+        hasSuccess: 'success' in data,
+        successValue: data.success,
+        message: data.message,
+        dataKeys: Object.keys(data)
+      })
+
+      const serverSuccess = data.success === true // Solo éxito si explícitamente true
+      const serverMessage = data.message || 'Sin mensaje del servidor'
+
+      if (!serverSuccess) {
+        console.error('❌ El servidor NO confirmó el éxito:', {
+          success: data.success,
+          message: serverMessage,
+          fullResponse: data
+        })
+        return {
+          success: false,
+          message: serverMessage || 'El servidor no confirmó que la contraseña se cambió exitosamente'
+        }
+      }
+
+      console.log('✅ Cambio de contraseña exitoso según el servidor')
+      return {
+        success: true,
+        message: serverMessage,
+        data: data.data
+      }
+    } catch (error) {
+      console.error('❌ Error al cambiar contraseña:', error)
+      
+      const diagnosticMessage = diagnoseConnectionError(error)
+      console.error(diagnosticMessage)
+      
+      return {
+        success: false,
+        message: error instanceof Error ? error.message : 'Error al cambiar la contraseña'
       }
     }
   }

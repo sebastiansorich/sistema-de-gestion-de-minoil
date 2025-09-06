@@ -2,6 +2,8 @@ import React, { useState } from 'react'
 import { Eye, EyeOff, Loader2, AlertCircle, CheckCircle, Lock, X } from 'lucide-react'
 import { Button } from '../base/button'
 import FormValidation from '../forms/FormValidation'
+import { authService, type ChangePasswordRequest } from '../../../services/authService'
+import { useAuth } from '../../../contexts/AuthContext'
 
 interface ModalChangePasswordProps {
   isOpen: boolean
@@ -10,6 +12,8 @@ interface ModalChangePasswordProps {
 }
 
 const ModalChangePassword: React.FC<ModalChangePasswordProps> = ({ isOpen, onClose, onSuccess }) => {
+  const { user, logout } = useAuth()
+  
   // Estados del formulario
   const [formData, setFormData] = useState({
     currentPassword: '',
@@ -135,31 +139,66 @@ const ModalChangePassword: React.FC<ModalChangePasswordProps> = ({ isOpen, onClo
       return
     }
 
+    // Validar que el usuario esté autenticado
+    if (!user?.username) {
+      setErrors({ general: 'No se pudo obtener la información del usuario. Por favor, inicie sesión nuevamente.' })
+      return
+    }
+
     setIsSubmitting(true)
     setErrors({})
 
     try {
-      // Simular llamada a la API (aquí se integrará con la API real)
-      await new Promise(resolve => setTimeout(resolve, 2000))
+      // Función helper para obtener información del cliente
+      const getClientInfo = () => {
+        return {
+          clientIp: '192.168.1.100', // En un entorno real, esto se obtendría del servidor
+          userAgent: navigator.userAgent
+        }
+      }
+
+      const clientInfo = getClientInfo()
       
-      // Simular éxito
-      setSuccessMessage('¡Contraseña cambiada exitosamente!')
-      setFormData({
-        currentPassword: '',
-        newPassword: '',
-        confirmPassword: ''
-      })
+      const changePasswordRequest: ChangePasswordRequest = {
+        username: user.username,
+        currentPassword: formData.currentPassword,
+        newPassword: formData.newPassword,
+        confirmPassword: formData.confirmPassword,
+        clientIp: clientInfo.clientIp,
+        userAgent: clientInfo.userAgent
+      }
+
+      const response = await authService.changePassword(changePasswordRequest)
       
-      // Llamar callback de éxito si existe
-      if (onSuccess) {
-        setTimeout(() => {
-          onSuccess()
-          handleClose()
-        }, 1500)
+      if (response.success) {
+        setSuccessMessage(response.message || '¡Contraseña cambiada exitosamente!')
+        setFormData({
+          currentPassword: '',
+          newPassword: '',
+          confirmPassword: ''
+        })
+        
+        // Llamar callback de éxito si existe y cerrar sesión por seguridad
+        if (onSuccess) {
+          setTimeout(() => {
+            onSuccess()
+            handleClose()
+            // Cerrar sesión automáticamente por seguridad después de cambiar contraseña
+            setTimeout(() => {
+              logout()
+            }, 500)
+          }, 1500)
+        } else {
+          setTimeout(() => {
+            handleClose()
+            // Cerrar sesión automáticamente por seguridad después de cambiar contraseña
+            setTimeout(() => {
+              logout()
+            }, 500)
+          }, 1500)
+        }
       } else {
-        setTimeout(() => {
-          handleClose()
-        }, 1500)
+        setErrors({ general: response.message || 'Error al cambiar la contraseña. Intente nuevamente.' })
       }
       
     } catch (error) {
@@ -182,13 +221,13 @@ const ModalChangePassword: React.FC<ModalChangePasswordProps> = ({ isOpen, onClo
     <>
       {/* Overlay */}
       <div 
-        className="fixed inset-0 bg-black bg-opacity-50 z-40 transition-opacity"
+        className="fixed inset-0 bg-black opacity-50 z-40 transition-opacity"
         onClick={handleClose}
       />
       
       {/* Modal */}
       <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-        <div className="bg-white rounded-lg shadow-xl w-full max-w-md max-h-[90vh] overflow-y-auto">
+        <div className="bg-white/95 backdrop-blur-sm rounded-lg shadow-xl w-full max-w-md max-h-[90vh] overflow-y-auto border border-gray-200/50">
           {/* Header */}
           <div className="flex items-center justify-between p-6 border-b border-gray-200">
             <div className="flex items-center gap-2">
@@ -374,7 +413,7 @@ const ModalChangePassword: React.FC<ModalChangePasswordProps> = ({ isOpen, onClo
               <Button
                 type="submit"
                 disabled={isSubmitting}
-                className="flex-1"
+                className="flex-1 bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white font-semibold shadow-lg hover:shadow-xl transform hover:scale-[1.02] active:scale-[0.98] transition-all duration-200 border-0 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none"
               >
                 {isSubmitting ? (
                   <>

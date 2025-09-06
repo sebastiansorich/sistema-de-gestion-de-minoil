@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from "react"
-import { UserIcon, MapPinIcon, BuildingOfficeIcon, InformationCircleIcon } from '@heroicons/react/24/outline'
+import { UserIcon, MapPinIcon, BuildingOfficeIcon } from '@heroicons/react/24/outline'
 import { useAuth } from "../../contexts/AuthContext"
 import { useLocation } from "react-router-dom"
 import Breadcrumb from "../ui/navigation/Breadcrumb"
@@ -31,6 +31,11 @@ export default function Header() {
   const menuRef = useRef<HTMLDivElement>(null)
   const { logout, user } = useAuth()
   const location = useLocation()
+  
+  // Si no hay usuario, no renderizar el header
+  if (!user) {
+    return null
+  }
 
   // Cierra el menú si haces click fuera
   useEffect(() => {
