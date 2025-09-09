@@ -287,12 +287,37 @@ class MantenimientosService {
   }
 
   /**
+   * Obtener el último mantenimiento de una chopera específica
+   */
+  async getUltimoMantenimientoByChopera(itemCode: string): Promise<Mantenimiento | null> {
+    try {
+      const response = await fetch(buildUrl(`/bendita/mantenimientos/ultimo/${itemCode}`), {
+        method: 'GET',
+        headers: API_CONFIG.DEFAULT_HEADERS,
+      })
+
+      if (response.status === 404) {
+        // No hay mantenimientos para esta chopera
+        return null
+      }
+
+      const data = await handleApiResponse(response)
+      return data
+    } catch (error) {
+      console.error('Error obteniendo último mantenimiento:', error)
+      // En caso de error, retornar null para indicar que no se pudo obtener
+      return null
+    }
+  }
+
+  /**
    * Crear nuevo mantenimiento
    */
-  async createMantenimiento(formData: MantenimientoFormData): Promise<Mantenimiento> {
+  async createMantenimiento(formData: MantenimientoFormData, usuarioId: number): Promise<Mantenimiento> {
     try {
       // Log para depuración
       console.log('Enviando datos al servidor:', formData);
+      console.log('Usuario ID:', usuarioId);
       
       // Convertir el checklist a respuestasChecklist
       const respuestasChecklist = this.convertChecklistToRespuestas(formData.checklist);
@@ -302,6 +327,7 @@ class MantenimientosService {
       
       // Crear el objeto de datos que espera el backend
       const mantenimientoData = {
+        usuarioId: usuarioId,
         fechaVisita: formData.fechaVisita,
         clienteCodigo: formData.clienteCodigo,
         itemCode: formData.itemCode,
@@ -339,22 +365,20 @@ class MantenimientosService {
    * Convertir checklist a formato de respuestas
    */
   private convertChecklistToRespuestas(checklist: ChecklistMantenimiento): any[] {
-    const respuestas: any[] = [];
     
-    // Crear respuestas por defecto basadas en la estructura del backend
-    // Basándome en el ejemplo que proporcionaste, crear al menos 11 respuestas
+    // Crear respuestas basadas en la nueva estructura del backend (SI/NO)
     const defaultItems = [
-      { itemId: 1, valor: 'BUENO' }, // Estado General del Equipo
-      { itemId: 2, valor: 'Cumple' }, // Enjuague completo
-      { itemId: 3, valor: 'Cumple' }, // Pasada de fenolftaleína
-      { itemId: 4, valor: 'Cumple' }, // Confirmar componentes
-      { itemId: 5, valor: 'Cumple' }, // Desarmado y Limpieza de Grifos
-      { itemId: 6, valor: 'Cumple' }, // Aplicación de desinfectante
-      { itemId: 7, valor: 'Cumple' }, // Pasada de soda cáustica
-      { itemId: 8, valor: 'Cumple' }, // Revisar residuos
-      { itemId: 9, valor: 'Cumple' }, // Comprobación funcionamiento
-      { itemId: 10, valor: 'Cumple' }, // Verificación temperatura
-      { itemId: 11, valor: 'Cumple' }  // Limpieza general
+      { itemId: 1, valor: 'SI' }, // Estado General del Equipo
+      { itemId: 2, valor: 'SI' }, // Enjuague completo
+      { itemId: 3, valor: 'SI' }, // Pasada de fenolftaleína
+      { itemId: 4, valor: 'SI' }, // Confirmar componentes
+      { itemId: 5, valor: 'SI' }, // Desarmado y Limpieza de Grifos
+      { itemId: 6, valor: 'SI' }, // Aplicación de desinfectante
+      { itemId: 7, valor: 'SI' }, // Pasada de soda cáustica
+      { itemId: 8, valor: 'SI' }, // Revisar residuos
+      { itemId: 9, valor: 'SI' }, // Comprobación funcionamiento
+      { itemId: 10, valor: 'SI' }, // Verificación temperatura
+      { itemId: 11, valor: 'SI' }  // Limpieza general
     ];
 
     // Si hay datos del checklist, usarlos para actualizar las respuestas por defecto
@@ -363,25 +387,25 @@ class MantenimientosService {
       let itemIndex = 0;
       
       // Limpieza
-      Object.entries(checklist.limpieza).forEach(([key, value]) => {
+      Object.entries(checklist.limpieza).forEach(([, value]) => {
         if (defaultItems[itemIndex]) {
-          defaultItems[itemIndex].valor = value ? 'Cumple' : 'No Cumple';
+          defaultItems[itemIndex].valor = value ? 'SI' : 'NO';
         }
         itemIndex++;
       });
 
       // Funcionamiento
-      Object.entries(checklist.funcionamiento).forEach(([key, value]) => {
+      Object.entries(checklist.funcionamiento).forEach(([, value]) => {
         if (defaultItems[itemIndex]) {
-          defaultItems[itemIndex].valor = value ? 'Cumple' : 'No Cumple';
+          defaultItems[itemIndex].valor = value ? 'SI' : 'NO';
         }
         itemIndex++;
       });
 
       // Seguridad
-      Object.entries(checklist.seguridad).forEach(([key, value]) => {
+      Object.entries(checklist.seguridad).forEach(([, value]) => {
         if (defaultItems[itemIndex]) {
-          defaultItems[itemIndex].valor = value ? 'Cumple' : 'No Cumple';
+          defaultItems[itemIndex].valor = value ? 'SI' : 'NO';
         }
         itemIndex++;
       });
@@ -394,31 +418,61 @@ class MantenimientosService {
    * Convertir análisis sensorial a formato de respuestas
    */
   private convertAnalisisToRespuestas(analisisSensorial: { grifos: any[] }): any[] {
-    const respuestas: any[] = [];
+    console.log('🔍 DEBUG - convertAnalisisToRespuestas - Datos recibidos:', analisisSensorial);
 
-    // Crear respuestas por defecto basadas en la estructura del backend
-    // Basándome en el ejemplo que proporcionaste, crear al menos 6 respuestas
-    const defaultRespuestas = [
-      { grifo: 1, cerveza: 'Hoppy Lager', criterio: 'Aroma', valor: 'Cumple' },
-      { grifo: 1, cerveza: 'Hoppy Lager', criterio: 'Aspecto', valor: 'Cumple' },
-      { grifo: 1, cerveza: 'Hoppy Lager', criterio: 'Sabor', valor: 'Cumple' },
-      { grifo: 2, cerveza: 'IPA', criterio: 'Aspecto', valor: 'Cumple' },
-      { grifo: 2, cerveza: 'IPA', criterio: 'Sabor', valor: 'Cumple' },
-      { grifo: 2, cerveza: 'IPA', criterio: 'Aroma', valor: 'Cumple' }
-    ];
+    // Función helper para convertir puntaje numérico a texto
+    const convertirPuntajeATexto = (puntaje: number): string => {
+      if (puntaje >= 4) return 'EXCELENTE';
+      if (puntaje >= 3) return 'BUENO';
+      if (puntaje >= 2) return 'REGULAR';
+      return 'MALO';
+    };
 
-    // Si hay datos de análisis sensorial, usarlos para actualizar las respuestas por defecto
+    // Si hay datos de análisis sensorial reales, usarlos
     if (analisisSensorial && analisisSensorial.grifos && analisisSensorial.grifos.length > 0) {
+      const respuestasReales: any[] = [];
+      
       analisisSensorial.grifos.forEach((grifo, index) => {
-        if (defaultRespuestas[index * 3]) {
-          defaultRespuestas[index * 3].cerveza = grifo.cerveza || 'Cerveza';
-          defaultRespuestas[index * 3 + 1].cerveza = grifo.cerveza || 'Cerveza';
-          defaultRespuestas[index * 3 + 2].cerveza = grifo.cerveza || 'Cerveza';
-        }
+        const grifoNumero = index + 1;
+        // El componente usa 'tipoCerveza', no 'cerveza'
+        const cerveza = grifo.tipoCerveza || grifo.cerveza || 'Sin especificar';
+        
+        console.log(`🔍 DEBUG - Procesando grifo ${grifoNumero}:`, grifo);
+        
+        // Mapear los criterios del componente a los del backend
+        const criteriosMapeados = [
+          { frontend: 'sabor', backend: 'Sabor' },
+          { frontend: 'temperatura', backend: 'Temperatura' },
+          { frontend: 'aroma', backend: 'Aroma' }
+        ];
+        
+        criteriosMapeados.forEach(({ frontend, backend }) => {
+          let valor = 'BUENO'; // Valor por defecto
+          
+          // El componente envía valores numéricos (1-5)
+          if (grifo[frontend] && typeof grifo[frontend] === 'number') {
+            valor = convertirPuntajeATexto(grifo[frontend]);
+          }
+          
+          respuestasReales.push({
+            grifo: grifoNumero,
+            cerveza: cerveza,
+            criterio: backend,
+            valor: valor
+          });
+          
+          console.log(`🔍 DEBUG - Agregada respuesta: Grifo ${grifoNumero}, ${cerveza}, ${backend}: ${valor} (puntaje original: ${grifo[frontend]})`);
+        });
       });
+      
+      console.log('🔍 DEBUG - Respuestas finales generadas:', respuestasReales);
+      return respuestasReales;
     }
 
-    return defaultRespuestas;
+    // Si no hay datos del análisis sensorial, retornar array vacío
+    // El backend manejará esto apropiadamente
+    console.log('🔍 DEBUG - No hay datos de análisis sensorial, retornando array vacío');
+    return [];
   }
 
   /**

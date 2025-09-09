@@ -85,23 +85,27 @@ export function ModalVerMantenimiento({ mantenimiento, isOpen, onClose }: ModalV
                     </div>
                   </div>
 
-                                     <div className="flex items-center gap-3">
-                     <Building className="w-5 h-5 text-gray-400" />
-                     <div>
-                       <p className="text-sm text-gray-500">Chopera</p>
-                       <p className="font-medium">{mantenimiento.choperaId}</p>
-                     </div>
-                   </div>
+                  <div className="flex items-center gap-3">
+                    <Building className="w-5 h-5 text-gray-400" />
+                    <div>
+                      <p className="text-sm text-gray-500">Chopera</p>
+                      <p className="font-medium">{mantenimiento.itemCode} - {mantenimiento.choperaCode}</p>
+                      <p className="text-xs text-gray-400">{mantenimiento.chopera?.itemName || 'N/A'}</p>
+                    </div>
+                  </div>
 
-                                     <div className="flex items-center gap-3">
-                     <User className="w-5 h-5 text-gray-400" />
-                     <div>
-                       <p className="text-sm text-gray-500">Técnico</p>
-                       <p className="font-medium">
-                         {mantenimiento.usuario?.nombre || 'N/A'} {mantenimiento.usuario?.apellido || ''}
-                       </p>
-                     </div>
-                   </div>
+                  <div className="flex items-center gap-3">
+                    <User className="w-5 h-5 text-gray-400" />
+                    <div>
+                      <p className="text-sm text-gray-500">Técnico Responsable</p>
+                      <p className="font-medium">
+                        {mantenimiento.usuario?.nombre || 'N/A'} {mantenimiento.usuario?.apellido || ''}
+                      </p>
+                      <p className="text-xs text-gray-400">
+                        Creado el {new Date(mantenimiento.createdAt).toLocaleDateString()} a las {new Date(mantenimiento.createdAt).toLocaleTimeString()}
+                      </p>
+                    </div>
+                  </div>
                 </div>
               </div>
             </div>
@@ -168,11 +172,13 @@ export function ModalVerMantenimiento({ mantenimiento, isOpen, onClose }: ModalV
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   {mantenimiento.respuestasChecklist.map((respuesta, index) => (
                     <div key={index} className="flex items-center justify-between">
-                      <span className="text-sm text-gray-700">{respuesta.item?.nombre || 'Item sin nombre'}</span>
+                      <span className="text-sm text-gray-700">{respuesta.item?.nombre || `Item ${respuesta.itemId}`}</span>
                       <span className={`px-2 py-1 text-xs rounded-full ${
-                        respuesta.valor === 'Cumple' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
+                        respuesta.valor === 'SI' ? 'bg-green-100 text-green-800' : 
+                        respuesta.valor === 'NO' ? 'bg-red-100 text-red-800' : 
+                        'bg-gray-100 text-gray-800'
                       }`}>
-                        {respuesta.valor || 'No especificado'}
+                        {respuesta.valor === 'SI' ? '✓ SÍ' : respuesta.valor === 'NO' ? '✗ NO' : respuesta.valor || 'No especificado'}
                       </span>
                     </div>
                   ))}
@@ -196,7 +202,11 @@ export function ModalVerMantenimiento({ mantenimiento, isOpen, onClose }: ModalV
                         <p className="text-xs text-gray-500">{respuesta.criterio || 'Sin criterio especificado'}</p>
                       </div>
                       <span className={`px-2 py-1 text-xs rounded-full ${
-                        respuesta.valor === 'Cumple' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
+                        respuesta.valor === 'EXCELENTE' ? 'bg-green-100 text-green-800' : 
+                        respuesta.valor === 'BUENO' ? 'bg-blue-100 text-blue-800' : 
+                        respuesta.valor === 'REGULAR' ? 'bg-yellow-100 text-yellow-800' : 
+                        respuesta.valor === 'MALO' ? 'bg-red-100 text-red-800' : 
+                        'bg-gray-100 text-gray-800'
                       }`}>
                         {respuesta.valor || 'No especificado'}
                       </span>

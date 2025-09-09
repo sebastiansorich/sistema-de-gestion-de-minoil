@@ -19,6 +19,7 @@ import AnalisisSensorialComponent from "../../components/ui/forms/AnalisisSensor
 import { SelectChoperas, SelectClientes } from "../../components/ui/selects";
 import { mantenimientosService, choperasService, clientesService } from "../../services";
 import { useToastContext } from "../../contexts/ToastContext";
+import { useAuth } from "../../contexts/AuthContext";
 import type { MantenimientoFormData, ChecklistMantenimiento, Chopera, Cliente } from "../../services";
 import type { AnalisisSensorialData } from "../../components/ui/forms/AnalisisSensorial";
 
@@ -65,6 +66,7 @@ const initialFormData: MantenimientoFormData = {
 export default function NuevoMantenimiento() {
   const navigate = useNavigate();
   const { showSuccess, showError } = useToastContext();
+  const { user } = useAuth();
   const [currentStep, setCurrentStep] = useState(1);
   const [formData, setFormData] = useState<MantenimientoFormData>(initialFormData);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -204,14 +206,25 @@ export default function NuevoMantenimiento() {
   const handleSubmit = async () => {
     if (!validateCurrentStep()) return;
 
+    // Validar que el usuario esté autenticado
+    if (!user?.id) {
+      showError(
+        'Usuario no autenticado',
+        'No se pudo obtener la información del usuario. Por favor, inicie sesión nuevamente.',
+        5000
+      );
+      return;
+    }
+
     try {
       setIsSubmitting(true);
       
       // Log de depuración para ver qué datos se están enviando
       console.log('Datos a enviar:', formData);
+      console.log('Usuario ID:', user.id);
       console.log('Item Code:', formData.itemCode, 'Tipo:', typeof formData.itemCode);
       
-      const result = await mantenimientosService.createMantenimiento(formData);
+      const result = await mantenimientosService.createMantenimiento(formData, user.id);
       
       console.log('Respuesta del servidor:', result);
       

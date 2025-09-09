@@ -27,6 +27,7 @@ import {
 } from "../../components/ui";
 import Breadcrumb from "../../components/ui/navigation/Breadcrumb";
 import { choperasService, type Chopera } from "../../services/choperasService";
+import { mantenimientosService, type Mantenimiento } from "../../services/mantenimientosService";
 import { useNavigate } from "react-router-dom";
 
 export default function Choperas() {
@@ -37,9 +38,12 @@ export default function Choperas() {
   const [error, setError] = useState<string | null>(null);
   const [isRefreshing, setIsRefreshing] = useState(false);
   
+  // Estado para los últimos mantenimientos
+  const [ultimosMantenimientos, setUltimosMantenimientos] = useState<Record<string, Mantenimiento | null>>({});
+  
   // Estados para filtros
   const [searchTerm, setSearchTerm] = useState("");
-  const [selectedStatus, setSelectedStatus] = useState("");
+  const [selectedCliente, setSelectedCliente] = useState("");
   const [selectedCiudad, setSelectedCiudad] = useState("");
   const [selectedAlias, setSelectedAlias] = useState("");
   
@@ -67,12 +71,12 @@ export default function Choperas() {
   // Aplicar filtros cuando cambien
   useEffect(() => {
     applyFilters();
-  }, [choperas, searchTerm, selectedStatus, selectedCiudad, selectedAlias]);
+  }, [choperas, searchTerm, selectedCliente, selectedCiudad, selectedAlias]);
 
   // Resetear página al cambiar filtros
   useEffect(() => {
     setCurrentPage(1);
-  }, [searchTerm, selectedStatus, selectedCiudad, selectedAlias]);
+  }, [searchTerm, selectedCliente, selectedCiudad, selectedAlias]);
 
   const loadChoperas = async () => {
     try {
@@ -89,11 +93,39 @@ export default function Choperas() {
       
       setChoperas(choperasData);
       setStats(statsData);
+      
+      // Cargar últimos mantenimientos para cada chopera
+      await loadUltimosMantenimientos(choperasData);
     } catch (err) {
       console.error('Error cargando choperas:', err);
       setError('Error al cargar los datos de choperas desde SAP');
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const loadUltimosMantenimientos = async (choperasData: Chopera[]) => {
+    try {
+      const mantenimientosPromises = choperasData.map(async (chopera) => {
+        try {
+          const ultimoMantenimiento = await mantenimientosService.getUltimoMantenimientoByChopera(chopera.itemCode);
+          return { itemCode: chopera.itemCode, mantenimiento: ultimoMantenimiento };
+        } catch (error) {
+          console.error(`Error cargando último mantenimiento para chopera ${chopera.itemCode}:`, error);
+          return { itemCode: chopera.itemCode, mantenimiento: null };
+        }
+      });
+
+      const resultados = await Promise.all(mantenimientosPromises);
+      
+      const mantenimientosMap: Record<string, Mantenimiento | null> = {};
+      resultados.forEach(({ itemCode, mantenimiento }) => {
+        mantenimientosMap[itemCode] = mantenimiento;
+      });
+      
+      setUltimosMantenimientos(mantenimientosMap);
+    } catch (error) {
+      console.error('Error cargando últimos mantenimientos:', error);
     }
   };
 
@@ -106,6 +138,34 @@ export default function Choperas() {
     } finally {
       setIsRefreshing(false);
     }
+  };
+
+  // Función helper para determinar si el mantenimiento está pendiente
+  const isMantenimientoPendiente = (ultimoMantenimiento: Mantenimiento | null): boolean => {
+    if (!ultimoMantenimiento) return true;
+    
+    const fechaUltimoMantenimiento = new Date(ultimoMantenimiento.fechaVisita);
+    const fechaActual = new Date();
+    const unMesAtras = new Date();
+    unMesAtras.setMonth(fechaActual.getMonth() - 1);
+    
+    return fechaUltimoMantenimiento < unMesAtras;
+  };
+
+  // Función helper para formatear la fecha del último mantenimiento
+  const formatearUltimoMantenimiento = (ultimoMantenimiento: Mantenimiento | null): string => {
+    if (!ultimoMantenimiento) return "Mantenimiento Pendiente";
+    
+    if (isMantenimientoPendiente(ultimoMantenimiento)) {
+      return "Mantenimiento Pendiente";
+    }
+    
+    const fecha = new Date(ultimoMantenimiento.fechaVisita);
+    return fecha.toLocaleDateString('es-ES', {
+      day: '2-digit',
+      month: '2-digit',
+      year: 'numeric'
+    });
   };
 
   const applyFilters = () => {
@@ -122,9 +182,13 @@ export default function Choperas() {
       );
     }
 
-    // Filtro por status
-    if (selectedStatus) {
-      filtered = filtered.filter(chopera => chopera.status === selectedStatus);
+    // Filtro por cliente
+    if (selectedCliente) {
+      if (selectedCliente === 'Sin cliente') {
+        filtered = filtered.filter(chopera => !chopera.cardName || chopera.cardName.trim() === '');
+      } else {
+        filtered = filtered.filter(chopera => chopera.cardName === selectedCliente);
+      }
     }
 
     // Filtro por ciudad
@@ -146,7 +210,7 @@ export default function Choperas() {
 
   const clearFilters = () => {
     setSearchTerm("");
-    setSelectedStatus("");
+    setSelectedCliente("");
     setSelectedCiudad("");
     setSelectedAlias("");
   };
@@ -233,8 +297,12 @@ export default function Choperas() {
   };
 
   // Obtener opciones únicas para los filtros
-  const statuses = [...new Set(choperas.map(c => c.status).filter(Boolean))];
   const ciudades = [...new Set(choperas.map(c => c.ciudad).filter(Boolean))];
+  
+  // Para clientes, incluir "Sin cliente" si hay registros sin cliente
+  const clienteOptions = [...new Set(choperas.map(c => c.cardName).filter(Boolean))];
+  const hasEmptyCliente = choperas.some(c => !c.cardName || c.cardName.trim() === '');
+  const clientes = hasEmptyCliente ? ['Sin cliente', ...clienteOptions] : clienteOptions;
   
   // Para aliases, incluir "Sin alias" si hay registros sin alias
   const aliasOptions = [...new Set(choperas.map(c => c.aliasName).filter(Boolean))];
@@ -243,9 +311,11 @@ export default function Choperas() {
 
 
 
-  // Calcular estadísticas de status específicos
-  const prestadoCount = choperas.filter(c => c.status === 'Prestado').length;
-  const minoilCount = choperas.filter(c => c.status === 'Minoil').length;
+  // Calcular estadísticas regionales
+  const totalChoperas = choperas.length;
+  const choperasSCZ = choperas.filter(c => c.ciudad && c.ciudad.toLowerCase().includes('santa cruz')).length;
+  const choperasCBB = choperas.filter(c => c.ciudad && c.ciudad.toLowerCase().includes('cochabamba')).length;
+  const choperasLPZ = choperas.filter(c => c.ciudad && c.ciudad.toLowerCase().includes('la paz')).length;
 
   if (error) {
     return (
@@ -268,56 +338,54 @@ export default function Choperas() {
 
   return (
     <div className="p-6 space-y-6">
-      {stats && (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-          <div className="bg-white p-6 rounded-lg border">
-            <div className="flex items-center">
-              <Package className="w-5 h-5 text-blue-500 mr-2" />
-              <div>
-                <p className="text-sm font-medium text-gray-600">Total Choperas</p>
-                <p className="text-2xl font-bold text-gray-900">{stats.total}</p>
-              </div>
-            </div>
-          </div>
-          
-          <div className="bg-white p-6 rounded-lg border">
-            <div className="flex items-center">
-              <Building className="w-5 h-5 text-green-500 mr-2" />
-              <div>
-                <p className="text-sm font-medium text-gray-600">Ciudades</p>
-                <p className="text-2xl font-bold text-gray-900">{Object.keys(stats.porCiudad).length}</p>
-              </div>
-            </div>
-          </div>
-          
-          <div className="bg-white p-6 rounded-lg border">
-            <div className="flex items-center">
-              <Users className="w-5 h-5 text-orange-500 mr-2" />
-              <div>
-                <p className="text-sm font-medium text-gray-600">Prestado</p>
-                <p className="text-2xl font-bold text-gray-900">{prestadoCount}</p>
-              </div>
-            </div>
-          </div>
-          
-          <div className="bg-white p-6 rounded-lg border">
-            <div className="flex items-center">
-              <CheckCircle className="w-5 h-5 text-purple-500 mr-2" />
-              <div>
-                <p className="text-sm font-medium text-gray-600">Minoil</p>
-                <p className="text-2xl font-bold text-gray-900">{minoilCount}</p>
-              </div>
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="bg-white p-6 rounded-lg border">
+          <div className="flex items-center">
+            <Package className="w-5 h-5 text-blue-500 mr-2" />
+            <div>
+              <p className="text-sm font-medium text-gray-600">Total Choperas</p>
+              <p className="text-2xl font-bold text-gray-900">{totalChoperas}</p>
             </div>
           </div>
         </div>
-      )}
+        
+        <div className="bg-white p-6 rounded-lg border">
+          <div className="flex items-center">
+            <MapPin className="w-5 h-5 text-green-500 mr-2" />
+            <div>
+              <p className="text-sm font-medium text-gray-600">Choperas SCZ</p>
+              <p className="text-2xl font-bold text-gray-900">{choperasSCZ}</p>
+            </div>
+          </div>
+        </div>
+        
+        <div className="bg-white p-6 rounded-lg border">
+          <div className="flex items-center">
+            <MapPin className="w-5 h-5 text-orange-500 mr-2" />
+            <div>
+              <p className="text-sm font-medium text-gray-600">Choperas CBB</p>
+              <p className="text-2xl font-bold text-gray-900">{choperasCBB}</p>
+            </div>
+          </div>
+        </div>
+        
+        <div className="bg-white p-6 rounded-lg border">
+          <div className="flex items-center">
+            <MapPin className="w-5 h-5 text-purple-500 mr-2" />
+            <div>
+              <p className="text-sm font-medium text-gray-600">Choperas LPZ</p>
+              <p className="text-2xl font-bold text-gray-900">{choperasLPZ}</p>
+            </div>
+          </div>
+        </div>
+      </div>
 
       {/* Filtros */}
       <div className="bg-white p-4 rounded-lg border space-y-4">
         <div className="flex items-center gap-2 mb-4">
           <Filter className="w-4 h-4 text-gray-500" />
           <span className="text-sm font-medium text-gray-700">Filtros</span>
-          {(searchTerm || selectedStatus || selectedCiudad || selectedAlias) && (
+          {(searchTerm || selectedCliente || selectedCiudad || selectedAlias) && (
             <Button
               onClick={clearFilters}
               variant="outline"
@@ -342,15 +410,15 @@ export default function Choperas() {
             />
           </div>
 
-          {/* Filtro por Status */}
+          {/* Filtro por Cliente */}
           <select
-            value={selectedStatus}
-            onChange={(e) => setSelectedStatus(e.target.value)}
+            value={selectedCliente}
+            onChange={(e) => setSelectedCliente(e.target.value)}
             className="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
           >
-            <option value="">Todos los status</option>
-            {statuses.map((status) => (
-              <option key={status} value={status}>{status}</option>
+            <option value="">Todos los clientes</option>
+            {clientes.map((cliente) => (
+              <option key={cliente} value={cliente}>{cliente}</option>
             ))}
           </select>
 
@@ -398,7 +466,7 @@ export default function Choperas() {
                 <TableRow>
                   <TableHead>Código</TableHead>
                   <TableHead>Nombre</TableHead>
-                  <TableHead>Status</TableHead>
+                  <TableHead>Último Mantenimiento</TableHead>
                   <TableHead>Ciudad</TableHead>
                   <TableHead>Serie/Activo</TableHead>
                   <TableHead>Cliente</TableHead>
@@ -412,15 +480,27 @@ export default function Choperas() {
                     <TableCell className="font-medium">{chopera.itemCode}</TableCell>
                     <TableCell>{chopera.itemName}</TableCell>
                     <TableCell>
-                      <span className={`px-2 py-1 text-xs rounded-full ${
-                        chopera.status === 'Minoil' 
-                          ? 'bg-green-100 text-green-800' 
-                          : chopera.status === 'Prestado'
-                          ? 'bg-orange-100 text-orange-800'
-                          : 'bg-gray-100 text-gray-800'
-                      }`}>
-                        {chopera.status || 'Sin status'}
-                      </span>
+                      {(() => {
+                        const ultimoMantenimiento = ultimosMantenimientos[chopera.itemCode];
+                        const esPendiente = isMantenimientoPendiente(ultimoMantenimiento);
+                        const fechaTexto = formatearUltimoMantenimiento(ultimoMantenimiento);
+                        
+                        return (
+                          <div className="flex items-center">
+                            {esPendiente ? (
+                              <>
+                                <AlertCircle className="w-4 h-4 text-red-500 mr-2" />
+                                <span className="text-red-600 font-medium">{fechaTexto}</span>
+                              </>
+                            ) : (
+                              <>
+                                <Calendar className="w-4 h-4 text-green-500 mr-2" />
+                                <span className="text-green-600">{fechaTexto}</span>
+                              </>
+                            )}
+                          </div>
+                        );
+                      })()}
                     </TableCell>
                     <TableCell>
                       <div className="flex items-center">
@@ -508,7 +588,7 @@ export default function Choperas() {
           <Package className="w-12 h-12 text-gray-400 mx-auto mb-4" />
           <h3 className="text-lg font-medium text-gray-900 mb-2">No se encontraron choperas</h3>
           <p className="text-gray-600">
-            {searchTerm || selectedStatus || selectedCiudad || selectedAlias
+            {searchTerm || selectedCliente || selectedCiudad || selectedAlias
               ? "Intenta ajustar los filtros de búsqueda"
               : "No hay choperas registradas en el sistema"}
           </p>
