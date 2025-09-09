@@ -12,6 +12,24 @@ export interface Chopera {
   aliasName: string
 }
 
+// Interface para chopera con información de mantenimiento
+export interface ChoperaConMantenimiento extends Chopera {
+  ultimoMantenimiento?: {
+    id: number
+    fechaVisita: string
+    fechaCreacion: string
+    tecnico: {
+      id: number
+      nombre: string
+      apellido: string
+    }
+    tipoMantenimiento: string
+    estadoGeneral: string
+    esPendiente: boolean
+    diasDesdeUltimo: number
+  } | null
+}
+
 export interface ChoperasResponse {
   success: boolean
   data: Chopera[]
@@ -20,7 +38,39 @@ export interface ChoperasResponse {
   message: string
 }
 
+export interface ChoperasConMantenimientoResponse {
+  success: boolean
+  data: ChoperaConMantenimiento[]
+  total: number
+  message: string
+}
+
 class ChoperasService {
+  /**
+   * Obtener todas las choperas con información de mantenimientos (OPTIMIZADO)
+   */
+  async getChoperasConMantenimientos(): Promise<ChoperaConMantenimiento[]> {
+    try {
+      const response = await fetch(buildUrl('/bendita/choperas/con-mantenimientos'), {
+        method: 'GET',
+        headers: API_CONFIG.DEFAULT_HEADERS,
+      })
+
+      if (!response.ok) {
+        throw new Error(`Error HTTP: ${response.status} - ${response.statusText}`)
+      }
+
+      const data: ChoperasConMantenimientoResponse = await handleApiResponse(response)
+      console.log('🔍 DEBUG - choperasService.getChoperasConMantenimientos() - Datos del endpoint:', data);
+      console.log('🔍 DEBUG - choperasService.getChoperasConMantenimientos() - Cantidad de choperas:', data.data?.length);
+      
+      return data.data || []
+    } catch (error) {
+      console.error('Error obteniendo choperas con mantenimientos:', error)
+      throw new Error('No se pudieron obtener las choperas con mantenimientos. Verifique la conexión.')
+    }
+  }
+
   /**
    * Obtener todas las choperas desde SAP
    */

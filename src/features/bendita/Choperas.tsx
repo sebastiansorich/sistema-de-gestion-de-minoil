@@ -3,18 +3,16 @@ import {
   Search, 
   Filter, 
   Eye, 
-  Download, 
-  RefreshCw,
   Loader2,
   AlertCircle,
+  AlertTriangle,
   Package,
   MapPin,
   Calendar,
-  Building,
-  BarChart3,
-  Users,
   CheckCircle,
-  Wrench
+  Wrench,
+  Clock,
+  User
 } from "lucide-react";
 import { Button, ModalChoperaDetails, Pagination } from "../../components/ui";
 import {
@@ -25,27 +23,22 @@ import {
   TableRow,
   TableCell,
 } from "../../components/ui";
-import Breadcrumb from "../../components/ui/navigation/Breadcrumb";
-import { choperasService, type Chopera } from "../../services/choperasService";
-import { mantenimientosService, type Mantenimiento } from "../../services/mantenimientosService";
+import { choperasService, type ChoperaConMantenimiento } from "../../services/choperasService";
 import { useNavigate } from "react-router-dom";
 
 export default function Choperas() {
   const navigate = useNavigate();
-  const [choperas, setChoperas] = useState<Chopera[]>([]);
-  const [filteredChoperas, setFilteredChoperas] = useState<Chopera[]>([]);
+  const [choperas, setChoperas] = useState<ChoperaConMantenimiento[]>([]);
+  const [filteredChoperas, setFilteredChoperas] = useState<ChoperaConMantenimiento[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [isRefreshing, setIsRefreshing] = useState(false);
   
-  // Estado para los últimos mantenimientos
-  const [ultimosMantenimientos, setUltimosMantenimientos] = useState<Record<string, Mantenimiento | null>>({});
-  
   // Estados para filtros
   const [searchTerm, setSearchTerm] = useState("");
-  const [selectedCliente, setSelectedCliente] = useState("");
+  const [selectedEstadoMantenimiento, setSelectedEstadoMantenimiento] = useState("");
   const [selectedCiudad, setSelectedCiudad] = useState("");
-  const [selectedAlias, setSelectedAlias] = useState("");
+  const [selectedTecnico, setSelectedTecnico] = useState("");
   
   // Estados de paginación
   const [currentPage, setCurrentPage] = useState(1);
@@ -60,7 +53,7 @@ export default function Choperas() {
   } | null>(null);
 
   // Estados para modal de detalles
-  const [selectedChopera, setSelectedChopera] = useState<Chopera | null>(null);
+  const [selectedChopera, setSelectedChopera] = useState<ChoperaConMantenimiento | null>(null);
   const [modalDetailsOpen, setModalDetailsOpen] = useState(false);
 
   // Cargar datos al montar el componente
@@ -71,12 +64,12 @@ export default function Choperas() {
   // Aplicar filtros cuando cambien
   useEffect(() => {
     applyFilters();
-  }, [choperas, searchTerm, selectedCliente, selectedCiudad, selectedAlias]);
+  }, [choperas, searchTerm, selectedEstadoMantenimiento, selectedCiudad, selectedTecnico]);
 
   // Resetear página al cambiar filtros
   useEffect(() => {
     setCurrentPage(1);
-  }, [searchTerm, selectedCliente, selectedCiudad, selectedAlias]);
+  }, [searchTerm, selectedEstadoMantenimiento, selectedCiudad, selectedTecnico]);
 
   const loadChoperas = async () => {
     try {
@@ -84,48 +77,20 @@ export default function Choperas() {
       setError(null);
       
       const [choperasData, statsData] = await Promise.all([
-        choperasService.getChoperas(),
+        choperasService.getChoperasConMantenimientos(),
         choperasService.getChoperasStats()
       ]);
       
       console.log('🔍 DEBUG - Choperas.tsx - Todas las choperas cargadas:', choperasData.length);
-      console.log('🔍 DEBUG - Choperas.tsx - Buscando chopera 903039:', choperasData.find(c => c.itemCode === '903039'));
+      console.log('🔍 DEBUG - Choperas.tsx - Choperas con mantenimiento:', choperasData.filter(c => c.ultimoMantenimiento).length);
       
       setChoperas(choperasData);
       setStats(statsData);
-      
-      // Cargar últimos mantenimientos para cada chopera
-      await loadUltimosMantenimientos(choperasData);
     } catch (err) {
       console.error('Error cargando choperas:', err);
       setError('Error al cargar los datos de choperas desde SAP');
     } finally {
       setIsLoading(false);
-    }
-  };
-
-  const loadUltimosMantenimientos = async (choperasData: Chopera[]) => {
-    try {
-      const mantenimientosPromises = choperasData.map(async (chopera) => {
-        try {
-          const ultimoMantenimiento = await mantenimientosService.getUltimoMantenimientoByChopera(chopera.itemCode);
-          return { itemCode: chopera.itemCode, mantenimiento: ultimoMantenimiento };
-        } catch (error) {
-          console.error(`Error cargando último mantenimiento para chopera ${chopera.itemCode}:`, error);
-          return { itemCode: chopera.itemCode, mantenimiento: null };
-        }
-      });
-
-      const resultados = await Promise.all(mantenimientosPromises);
-      
-      const mantenimientosMap: Record<string, Mantenimiento | null> = {};
-      resultados.forEach(({ itemCode, mantenimiento }) => {
-        mantenimientosMap[itemCode] = mantenimiento;
-      });
-      
-      setUltimosMantenimientos(mantenimientosMap);
-    } catch (error) {
-      console.error('Error cargando últimos mantenimientos:', error);
     }
   };
 
@@ -140,24 +105,12 @@ export default function Choperas() {
     }
   };
 
-  // Función helper para determinar si el mantenimiento está pendiente
-  const isMantenimientoPendiente = (ultimoMantenimiento: Mantenimiento | null): boolean => {
-    if (!ultimoMantenimiento) return true;
-    
-    const fechaUltimoMantenimiento = new Date(ultimoMantenimiento.fechaVisita);
-    const fechaActual = new Date();
-    const unMesAtras = new Date();
-    unMesAtras.setMonth(fechaActual.getMonth() - 1);
-    
-    return fechaUltimoMantenimiento < unMesAtras;
-  };
-
   // Función helper para formatear la fecha del último mantenimiento
-  const formatearUltimoMantenimiento = (ultimoMantenimiento: Mantenimiento | null): string => {
-    if (!ultimoMantenimiento) return "Mantenimiento Pendiente";
+  const formatearUltimoMantenimiento = (ultimoMantenimiento: ChoperaConMantenimiento['ultimoMantenimiento']): string => {
+    if (!ultimoMantenimiento) return "Sin mantenimiento";
     
-    if (isMantenimientoPendiente(ultimoMantenimiento)) {
-      return "Mantenimiento Pendiente";
+    if (ultimoMantenimiento.esPendiente) {
+      return `Pendiente (${ultimoMantenimiento.diasDesdeUltimo} días)`;
     }
     
     const fecha = new Date(ultimoMantenimiento.fechaVisita);
@@ -168,26 +121,45 @@ export default function Choperas() {
     });
   };
 
+  // Función helper para obtener el color del estado
+  const getEstadoColor = (ultimoMantenimiento: ChoperaConMantenimiento['ultimoMantenimiento']) => {
+    if (!ultimoMantenimiento) return 'text-gray-500';
+    if (ultimoMantenimiento.esPendiente) {
+      if (ultimoMantenimiento.diasDesdeUltimo > 60) return 'text-red-600';
+      if (ultimoMantenimiento.diasDesdeUltimo > 30) return 'text-orange-600';
+      return 'text-yellow-600';
+    }
+    return 'text-green-600';
+  };
+
+  // Función helper para obtener el icono del estado
+  const getEstadoIcono = (ultimoMantenimiento: ChoperaConMantenimiento['ultimoMantenimiento']) => {
+    if (!ultimoMantenimiento) return 'AlertTriangle';
+    if (ultimoMantenimiento.esPendiente) {
+      if (ultimoMantenimiento.diasDesdeUltimo > 60) return 'AlertCircle';
+      if (ultimoMantenimiento.diasDesdeUltimo > 30) return 'Clock';
+      return 'AlertTriangle';
+    }
+    return 'CheckCircle';
+  };
+
   const applyFilters = () => {
     let filtered = [...choperas];
 
-    // Filtro por término de búsqueda
+    // Filtro por término de búsqueda (serie de choperas y código de cliente)
     if (searchTerm) {
       filtered = filtered.filter(chopera =>
-        chopera.itemName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        chopera.itemCode.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        chopera.ciudad.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        (chopera.aliasName || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
-        (chopera.cardName || '').toLowerCase().includes(searchTerm.toLowerCase())
+        chopera.serieActivo.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        chopera.cardCode.toLowerCase().includes(searchTerm.toLowerCase())
       );
     }
 
-    // Filtro por cliente
-    if (selectedCliente) {
-      if (selectedCliente === 'Sin cliente') {
-        filtered = filtered.filter(chopera => !chopera.cardName || chopera.cardName.trim() === '');
-      } else {
-        filtered = filtered.filter(chopera => chopera.cardName === selectedCliente);
+    // Filtro por estado de mantenimiento
+    if (selectedEstadoMantenimiento) {
+      if (selectedEstadoMantenimiento === 'Sin mantenimiento') {
+        filtered = filtered.filter(chopera => !chopera.ultimoMantenimiento);
+      } else if (selectedEstadoMantenimiento === 'Pendiente') {
+        filtered = filtered.filter(chopera => chopera.ultimoMantenimiento?.esPendiente);
       }
     }
 
@@ -196,13 +168,13 @@ export default function Choperas() {
       filtered = filtered.filter(chopera => chopera.ciudad === selectedCiudad);
     }
 
-    // Filtro por alias - manejar casos donde aliasName está vacío
-    if (selectedAlias) {
-      if (selectedAlias === 'Sin alias') {
-        filtered = filtered.filter(chopera => !chopera.aliasName || chopera.aliasName.trim() === '');
-      } else {
-        filtered = filtered.filter(chopera => chopera.aliasName === selectedAlias);
-      }
+    // Filtro por técnico
+    if (selectedTecnico) {
+      filtered = filtered.filter(chopera => {
+        if (!chopera.ultimoMantenimiento?.tecnico) return false;
+        const nombreCompleto = `${chopera.ultimoMantenimiento.tecnico.nombre} ${chopera.ultimoMantenimiento.tecnico.apellido}`;
+        return nombreCompleto === selectedTecnico;
+      });
     }
 
     setFilteredChoperas(filtered);
@@ -210,9 +182,9 @@ export default function Choperas() {
 
   const clearFilters = () => {
     setSearchTerm("");
-    setSelectedCliente("");
+    setSelectedEstadoMantenimiento("");
     setSelectedCiudad("");
-    setSelectedAlias("");
+    setSelectedTecnico("");
   };
 
   // Cálculos de paginación
@@ -263,12 +235,12 @@ export default function Choperas() {
     }
   };
 
-  const handleViewDetails = (chopera: Chopera) => {
+  const handleViewDetails = (chopera: ChoperaConMantenimiento) => {
     setSelectedChopera(chopera);
     setModalDetailsOpen(true);
   };
 
-           const handleViewMantenimientos = (chopera: Chopera) => {
+           const handleViewMantenimientos = (chopera: ChoperaConMantenimiento) => {
            console.log('🔍 DEBUG - handleViewMantenimientos - Chopera seleccionada:', {
              itemCode: chopera.itemCode,
              itemName: chopera.itemName,
@@ -299,15 +271,12 @@ export default function Choperas() {
   // Obtener opciones únicas para los filtros
   const ciudades = [...new Set(choperas.map(c => c.ciudad).filter(Boolean))];
   
-  // Para clientes, incluir "Sin cliente" si hay registros sin cliente
-  const clienteOptions = [...new Set(choperas.map(c => c.cardName).filter(Boolean))];
-  const hasEmptyCliente = choperas.some(c => !c.cardName || c.cardName.trim() === '');
-  const clientes = hasEmptyCliente ? ['Sin cliente', ...clienteOptions] : clienteOptions;
-  
-  // Para aliases, incluir "Sin alias" si hay registros sin alias
-  const aliasOptions = [...new Set(choperas.map(c => c.aliasName).filter(Boolean))];
-  const hasEmptyAlias = choperas.some(c => !c.aliasName || c.aliasName.trim() === '');
-  const aliases = hasEmptyAlias ? ['Sin alias', ...aliasOptions] : aliasOptions;
+  // Para técnicos, obtener nombres únicos de los técnicos que han hecho mantenimientos
+  const tecnicos = [...new Set(
+    choperas
+      .filter(c => c.ultimoMantenimiento?.tecnico)
+      .map(c => `${c.ultimoMantenimiento!.tecnico.nombre} ${c.ultimoMantenimiento!.tecnico.apellido}`)
+  )];
 
 
 
@@ -385,7 +354,7 @@ export default function Choperas() {
         <div className="flex items-center gap-2 mb-4">
           <Filter className="w-4 h-4 text-gray-500" />
           <span className="text-sm font-medium text-gray-700">Filtros</span>
-          {(searchTerm || selectedCliente || selectedCiudad || selectedAlias) && (
+          {(searchTerm || selectedEstadoMantenimiento || selectedCiudad || selectedTecnico) && (
             <Button
               onClick={clearFilters}
               variant="outline"
@@ -398,31 +367,30 @@ export default function Choperas() {
         </div>
         
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-          {/* Búsqueda */}
+          {/* 1. Buscador por serie de choperas y código de cliente */}
           <div className="relative">
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
             <input
               type="text"
-              placeholder="Buscar por nombre, código, ubicación, alias..."
+              placeholder="Buscar por serie o código de cliente..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               className="pl-10 pr-3 py-2 w-full border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
             />
           </div>
 
-          {/* Filtro por Cliente */}
+          {/* 2. Estados de mantenimiento */}
           <select
-            value={selectedCliente}
-            onChange={(e) => setSelectedCliente(e.target.value)}
+            value={selectedEstadoMantenimiento}
+            onChange={(e) => setSelectedEstadoMantenimiento(e.target.value)}
             className="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
           >
-            <option value="">Todos los clientes</option>
-            {clientes.map((cliente) => (
-              <option key={cliente} value={cliente}>{cliente}</option>
-            ))}
+            <option value="">Todos los estados</option>
+            <option value="Sin mantenimiento">Sin mantenimiento</option>
+            <option value="Pendiente">Pendiente</option>
           </select>
 
-          {/* Filtro por Ciudad */}
+          {/* 3. Filtro por Ciudad */}
           <select
             value={selectedCiudad}
             onChange={(e) => setSelectedCiudad(e.target.value)}
@@ -434,15 +402,15 @@ export default function Choperas() {
             ))}
           </select>
 
-          {/* Filtro por Alias */}
+          {/* 4. Filtro por Técnico */}
           <select
-            value={selectedAlias}
-            onChange={(e) => setSelectedAlias(e.target.value)}
+            value={selectedTecnico}
+            onChange={(e) => setSelectedTecnico(e.target.value)}
             className="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
           >
-            <option value="">Todos los alias</option>
-            {aliases.map((alias) => (
-              <option key={alias} value={alias}>{alias}</option>
+            <option value="">Todos los técnicos</option>
+            {tecnicos.map((tecnico) => (
+              <option key={tecnico} value={tecnico}>{tecnico}</option>
             ))}
           </select>
         </div>
@@ -480,27 +448,38 @@ export default function Choperas() {
                     <TableCell className="font-medium">{chopera.itemCode}</TableCell>
                     <TableCell>{chopera.itemName}</TableCell>
                     <TableCell>
-                      {(() => {
-                        const ultimoMantenimiento = ultimosMantenimientos[chopera.itemCode];
-                        const esPendiente = isMantenimientoPendiente(ultimoMantenimiento);
-                        const fechaTexto = formatearUltimoMantenimiento(ultimoMantenimiento);
+                      <div className="space-y-1">
+                        {/* Estado principal */}
+                        <div className="flex items-center">
+                          {(() => {
+                            const icono = getEstadoIcono(chopera.ultimoMantenimiento);
+                            const color = getEstadoColor(chopera.ultimoMantenimiento);
+                            const IconComponent = icono === 'AlertCircle' ? AlertCircle :
+                                                 icono === 'AlertTriangle' ? AlertTriangle :
+                                                 icono === 'Clock' ? Clock :
+                                                 icono === 'CheckCircle' ? CheckCircle : Calendar;
+                            
+                            return (
+                              <>
+                                <IconComponent className={`w-4 h-4 ${color.replace('text-', 'text-')} mr-2`} />
+                                <span className={`font-medium ${color}`}>
+                                  {formatearUltimoMantenimiento(chopera.ultimoMantenimiento)}
+                                </span>
+                              </>
+                            );
+                          })()}
+                        </div>
                         
-                        return (
-                          <div className="flex items-center">
-                            {esPendiente ? (
-                              <>
-                                <AlertCircle className="w-4 h-4 text-red-500 mr-2" />
-                                <span className="text-red-600 font-medium">{fechaTexto}</span>
-                              </>
-                            ) : (
-                              <>
-                                <Calendar className="w-4 h-4 text-green-500 mr-2" />
-                                <span className="text-green-600">{fechaTexto}</span>
-                              </>
-                            )}
+                        {/* Información adicional del técnico */}
+                        {chopera.ultimoMantenimiento && (
+                          <div className="flex items-center text-xs text-gray-500 ml-6">
+                            <User className="w-3 h-3 mr-1" />
+                            <span>
+                              {chopera.ultimoMantenimiento.tecnico.nombre} {chopera.ultimoMantenimiento.tecnico.apellido}
+                            </span>
                           </div>
-                        );
-                      })()}
+                        )}
+                      </div>
                     </TableCell>
                     <TableCell>
                       <div className="flex items-center">
@@ -588,7 +567,7 @@ export default function Choperas() {
           <Package className="w-12 h-12 text-gray-400 mx-auto mb-4" />
           <h3 className="text-lg font-medium text-gray-900 mb-2">No se encontraron choperas</h3>
           <p className="text-gray-600">
-            {searchTerm || selectedCliente || selectedCiudad || selectedAlias
+            {searchTerm || selectedEstadoMantenimiento || selectedCiudad || selectedTecnico
               ? "Intenta ajustar los filtros de búsqueda"
               : "No hay choperas registradas en el sistema"}
           </p>

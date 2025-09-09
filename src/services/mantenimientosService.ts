@@ -287,28 +287,32 @@ class MantenimientosService {
   }
 
   /**
-   * Obtener el último mantenimiento de una chopera específica
+   * Obtener mantenimientos de una chopera específica por serieActivo
    */
-  async getUltimoMantenimientoByChopera(itemCode: string): Promise<Mantenimiento | null> {
+  async getMantenimientosBySerieActivo(serieActivo: string): Promise<Mantenimiento[]> {
     try {
-      const response = await fetch(buildUrl(`/bendita/mantenimientos/ultimo/${itemCode}`), {
+      console.log('🔍 DEBUG - mantenimientosService.getMantenimientosBySerieActivo - Serie activo:', serieActivo);
+      
+      const response = await fetch(buildUrl(`/bendita/mantenimientos/chopera/${serieActivo}`), {
         method: 'GET',
         headers: API_CONFIG.DEFAULT_HEADERS,
       })
 
-      if (response.status === 404) {
-        // No hay mantenimientos para esta chopera
-        return null
+      if (!response.ok) {
+        throw new Error(`Error HTTP: ${response.status} - ${response.statusText}`)
       }
 
       const data = await handleApiResponse(response)
+      console.log('🔍 DEBUG - mantenimientosService.getMantenimientosBySerieActivo - Datos devueltos:', data);
+      console.log('🔍 DEBUG - mantenimientosService.getMantenimientosBySerieActivo - Cantidad de mantenimientos:', data.length);
+      
       return data
     } catch (error) {
-      console.error('Error obteniendo último mantenimiento:', error)
-      // En caso de error, retornar null para indicar que no se pudo obtener
-      return null
+      console.error('Error obteniendo mantenimientos por serie activo:', error)
+      throw error
     }
   }
+
 
   /**
    * Crear nuevo mantenimiento

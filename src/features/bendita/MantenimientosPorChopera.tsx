@@ -94,100 +94,43 @@ export default function MantenimientosPorChopera() {
   }, [itemCode, serieActivo]);
 
   const loadChoperaData = async () => {
-    if (!itemCode) return;
+    if (!itemCode || !serieActivo) return;
 
     try {
       setIsLoading(true);
       setError(null);
 
-             // Obtener datos de la chopera y sus mantenimientos
-       const [choperaDetalle, mantenimientosData] = await Promise.all([
-         choperasService.getChoperaDetalle(itemCode, serieActivo || undefined),
-         mantenimientosService.getMantenimientos({ 
-           itemCode: itemCode,
-           serieActivo: serieActivo || undefined
-         })
-       ]);
+      console.log('🔍 DEBUG - MantenimientosPorChopera - Cargando datos para:', { itemCode, serieActivo });
+
+      // Obtener datos de la chopera y sus mantenimientos usando el endpoint optimizado
+      const [choperaDetalle, mantenimientosData] = await Promise.all([
+        choperasService.getChoperaDetalle(itemCode, serieActivo),
+        mantenimientosService.getMantenimientosBySerieActivo(serieActivo)
+      ]);
 
       console.log('🔍 DEBUG - Chopera detalle obtenida:', choperaDetalle);
-
-      // Usar directamente la chopera detalle (ya no necesitamos fallbacks)
-      const choperaConCliente = choperaDetalle;
-
-      console.log('🔍 DEBUG - MantenimientosPorChopera - itemCode buscado:', itemCode);
-      console.log('🔍 DEBUG - MantenimientosPorChopera - choperaDetalle encontrada:', choperaDetalle);
-      console.log('🔍 DEBUG - MantenimientosPorChopera - serieActivo de la chopera detalle:', choperaDetalle?.serieActivo);
+      console.log('🔍 DEBUG - Mantenimientos obtenidos:', mantenimientosData.length);
       
       // Verificar si se encontró la chopera
-      if (!choperaConCliente) {
+      if (!choperaDetalle) {
         throw new Error('Chopera no encontrada');
       }
 
-      console.log('🔍 DEBUG - Chopera encontrada en MantenimientosPorChopera:', choperaConCliente);
-      console.log('🔍 DEBUG - cardCode:', choperaConCliente.cardCode);
-      console.log('🔍 DEBUG - cardName:', choperaConCliente.cardName);
-      console.log('🔍 DEBUG - aliasName:', choperaConCliente.aliasName);
-      console.log('🔍 DEBUG - Todos los campos:', {
-        itemCode: choperaConCliente.itemCode,
-        itemName: choperaConCliente.itemName,
-        status: choperaConCliente.status,
-        ciudad: choperaConCliente.ciudad,
-        serieActivo: choperaConCliente.serieActivo,
-        cardCode: choperaConCliente.cardCode,
-        cardName: choperaConCliente.cardName,
-        aliasName: choperaConCliente.aliasName
+      console.log('🔍 DEBUG - Chopera encontrada:', {
+        itemCode: choperaDetalle.itemCode,
+        itemName: choperaDetalle.itemName,
+        serieActivo: choperaDetalle.serieActivo,
+        cardCode: choperaDetalle.cardCode,
+        cardName: choperaDetalle.cardName,
+        aliasName: choperaDetalle.aliasName
       });
 
-      setChopera(choperaConCliente);
-      
-             // Filtrar mantenimientos para mostrar solo los de esta chopera específica
-       // Usar choperaCode en lugar de serieActivo porque ese es el campo que realmente identifica la chopera
-       const mantenimientosFiltrados = mantenimientosData.filter(m => 
-         m.choperaCode === serieActivo
-       );
-      
-             console.log('🔍 DEBUG - Mantenimientos filtrados:', {
-         total: mantenimientosData.length,
-         filtrados: mantenimientosFiltrados.length,
-         serieActivoBuscado: serieActivo,
-         mantenimientosFiltrados: mantenimientosFiltrados.map(m => ({
-           id: m.id,
-           choperaCode: m.choperaCode,
-           serieActivo: m.chopera?.serieActivo,
-           cliente: m.clienteCodigo
-         }))
-       });
-      
-      setRecentMantenimientos(mantenimientosFiltrados);
+      setChopera(choperaDetalle);
+      setRecentMantenimientos(mantenimientosData);
 
-      // Debug: mostrar datos de la chopera
-      console.log('Chopera encontrada en MantenimientosPorChopera:', choperaConCliente);
-      console.log('cardCode:', choperaConCliente.cardCode);
-      console.log('aliasName:', choperaConCliente.aliasName);
-      console.log('cardName:', choperaConCliente.cardName);
-
-             // Debug: mostrar datos de mantenimientos
-       console.log('Mantenimientos encontrados:', mantenimientosData.length);
-       mantenimientosData.forEach((m, index) => {
-         console.log(`Mantenimiento ${index + 1}:`, {
-           fecha: m.fechaVisita,
-           tipo: m.tipoMantenimiento.nombre,
-           estado: m.estadoGeneral,
-           choperaCode: m.choperaCode,
-           serieActivo: m.chopera?.serieActivo,
-           cliente: m.clienteCodigo
-         });
-       });
-
-             // Calcular estadísticas específicas de esta chopera usando los mantenimientos filtrados
-       const statsCalculadas = calcularStatsPorChopera(mantenimientosFiltrados);
-      console.log('Estadísticas calculadas:', statsCalculadas);
-      console.log('Mantenimientos por mes:', statsCalculadas.mantenimientosPorMes);
-
-      // Debug: verificar si hay datos en algún mes
-      const mesesConDatos = statsCalculadas.mantenimientosPorMes.filter(item => item.completados > 0);
-      console.log('Meses con datos:', mesesConDatos);
-
+      // Calcular estadísticas específicas de esta chopera
+      const statsCalculadas = calcularStatsPorChopera(mantenimientosData);
+      console.log('🔍 DEBUG - Estadísticas calculadas:', statsCalculadas);
       setStats(statsCalculadas);
 
     } catch (err) {
