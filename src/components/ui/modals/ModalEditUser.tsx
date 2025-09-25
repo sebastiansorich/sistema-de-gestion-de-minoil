@@ -251,7 +251,7 @@ export function ModalEditUser({ open, onClose, usuario, onSave }: ModalEditUserP
             <Button
               type="submit"
               disabled={isLoading}
-              className="bg-primary hover:bg-primary/90"
+              className="bg-green-600 hover:bg-green-700 text-white"
             >
               {isLoading ? (
                 <>

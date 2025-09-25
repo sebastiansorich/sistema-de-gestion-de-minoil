@@ -69,11 +69,11 @@ class ModulosService {
     }
   }
 
-  // Nuevo método para obtener estructura jerárquica del sidebar
-  async getSidebarModules(): Promise<Modulo[]> {
+  // Nuevo método para obtener estructura jerárquica del sidebar por usuario
+  async getSidebarModules(usuarioId: number): Promise<Modulo[]> {
     try {
-      console.log('🔄 Cargando módulos desde /modulos/sidebar...')
-      const response = await fetch(buildUrl('/modulos/sidebar'), {
+      console.log(`🔄 Cargando módulos desde /modulos/sidebar/usuario/${usuarioId}...`)
+      const response = await fetch(buildUrl(`/modulos/sidebar/usuario/${usuarioId}`), {
         method: 'GET',
         headers: {
           ...API_CONFIG.DEFAULT_HEADERS,
@@ -95,7 +95,7 @@ class ModulosService {
         firstModule: modules[0] ? { id: modules[0].id, nombre: modules[0].nombre } : null
       })
       
-      console.log('✅ Módulos sidebar cargados:', {
+      console.log(`✅ Módulos sidebar cargados para usuario ${usuarioId}:`, {
         total: modules.length,
         conSubmodulos: modules.filter(m => m.submodulos && m.submodulos.length > 0).length,
         responseStatus: response.status,

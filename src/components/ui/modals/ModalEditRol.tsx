@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react'
-import { X, Loader2, AlertCircle, Shield, FileText, Package, Check, X as XIcon, Settings, Save } from 'lucide-react'
-import { rolesService, modulosService, type Rol, type UpdateRolRequest, type Modulo, type PermisoRequest } from '../../../services'
+import { X, Loader2, AlertCircle, Shield, FileText, Package, Check, Settings, Save } from 'lucide-react'
+import { rolesService, modulosService, permisosService, type Rol, type UpdateRolRequest, type Modulo, type PermisoRequest, type CreatePermisoRequest } from '../../../services'
 import { Button } from '../base/button'
 
 interface ModalEditRolProps {
@@ -26,6 +26,7 @@ export function ModalEditRol({ open, onClose, rol, onSave }: ModalEditRolProps) 
   // Resetear formulario cuando cambia el rol
   useEffect(() => {
     if (rol) {
+      console.log(`🔄 Modal abierto para rol: ${rol.nombre}`)
       setFormData({
         nombre: rol.nombre,
         descripcion: rol.descripcion,
@@ -39,34 +40,52 @@ export function ModalEditRol({ open, onClose, rol, onSave }: ModalEditRolProps) 
     setHasPermissionChanges(false)
   }, [rol])
 
-  const initializePermissions = () => {
+  const initializePermissions = async () => {
     if (!rol) return
     
-    const permissionsMap = new Map<number, PermisoRequest>()
+    console.log(`🔄 Inicializando permisos para rol ${rol.nombre} (ID: ${rol.id})`)
     
-    // Inicializar permisos existentes
-    if (rol.permisos && rol.permisos.length > 0) {
-      rol.permisos.forEach(permiso => {
-        permissionsMap.set(permiso.moduloId, {
-          moduloId: permiso.moduloId,
-          crear: permiso.crear,
-          leer: permiso.leer,
-          actualizar: permiso.actualizar,
-          eliminar: permiso.eliminar
-        })
+    try {
+      // Cargar módulos que ya incluyen los permisos
+      const modulosConPermisos = await modulosService.getAll()
+      console.log(`📋 Módulos con permisos cargados:`, modulosConPermisos)
+      
+      const permissionsMap = new Map<number, PermisoRequest>()
+      
+      // Buscar permisos de este rol en todos los módulos
+      modulosConPermisos.forEach(modulo => {
+        if (modulo.permisos && modulo.permisos.length > 0) {
+          const permisoDelRol = modulo.permisos.find(p => p.rolId === rol.id)
+          if (permisoDelRol) {
+            permissionsMap.set(modulo.id, {
+              moduloId: modulo.id,
+              crear: Boolean(permisoDelRol.crear),
+              leer: Boolean(permisoDelRol.leer),
+              actualizar: Boolean(permisoDelRol.actualizar),
+              eliminar: Boolean(permisoDelRol.eliminar)
+            })
+          }
+        }
       })
+      
+      console.log(`✅ Permisos inicializados para rol ${rol.nombre}:`, Array.from(permissionsMap.entries()))
+      setPermissions(permissionsMap)
+    } catch (error) {
+      console.error(`❌ Error cargando permisos para rol ${rol.nombre}:`, error)
+      // En caso de error, usar permisos vacíos
+      setPermissions(new Map())
     }
-    
-    setPermissions(permissionsMap)
   }
 
   const loadModulos = async () => {
     try {
+      console.log('🔄 Cargando módulos para modal de editar rol...')
       setIsLoadingModulos(true)
       const data = await modulosService.getAll()
+      console.log('✅ Módulos cargados para modal:', data)
       setModulos(data)
     } catch (err) {
-      console.error('Error cargando módulos:', err)
+      console.error('❌ Error cargando módulos:', err)
       setError('Error al cargar módulos del sistema')
     } finally {
       setIsLoadingModulos(false)
@@ -97,10 +116,28 @@ export function ModalEditRol({ open, onClose, rol, onSave }: ModalEditRolProps) 
         ...formData
       }
 
-      // Preparar permisos si hay cambios
-      const permissionsArray = hasPermissionChanges ? Array.from(permissions.values()) : undefined
+      // Actualizar información básica del rol
+      await rolesService.update(rol.id, basicData)
+      console.log('✅ Información básica del rol actualizada')
 
-      await rolesService.updateWithPermissions(rol.id, basicData, permissionsArray)
+      // Actualizar permisos si hay cambios
+      if (hasPermissionChanges) {
+        console.log('🔄 Actualizando permisos del rol...')
+        const permissionsArray = Array.from(permissions.values())
+        
+        // Convertir a CreatePermisoRequest
+        const createPermisosRequest: CreatePermisoRequest[] = permissionsArray.map(p => ({
+          rolId: rol.id,
+          moduloId: p.moduloId,
+          crear: p.crear,
+          leer: p.leer,
+          actualizar: p.actualizar,
+          eliminar: p.eliminar
+        }))
+
+        await permisosService.syncRolePermissions(rol.id, createPermisosRequest)
+        console.log('✅ Permisos del rol actualizados')
+      }
       setHasPermissionChanges(false)
       onSave()
       onClose()
@@ -119,13 +156,6 @@ export function ModalEditRol({ open, onClose, rol, onSave }: ModalEditRolProps) 
     }))
   }
 
-  const getPermissionIcon = (hasPermission: boolean) => {
-    return hasPermission ? (
-      <Check className="w-4 h-4 text-green-600" />
-    ) : (
-      <XIcon className="w-4 h-4 text-gray-300" />
-    )
-  }
 
   const getModuloPermission = (moduloId: number) => {
     return permissions.get(moduloId) || {
@@ -228,7 +258,7 @@ export function ModalEditRol({ open, onClose, rol, onSave }: ModalEditRolProps) 
               }`}
             >
               <Settings className="w-4 h-4 inline mr-2" />
-              Permisos ({(rol.permisos?.length || 0)} módulos)
+              Permisos ({Array.from(permissions.keys()).length} módulos)
               {hasPermissionChanges && <span className="ml-2 w-2 h-2 bg-yellow-500 rounded-full inline-block"></span>}
             </button>
           </div>
@@ -296,11 +326,11 @@ export function ModalEditRol({ open, onClose, rol, onSave }: ModalEditRolProps) 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4 p-4 bg-gray-50 rounded-lg">
                 <div>
                   <div className="text-sm text-gray-600">Usuarios con este rol</div>
-                  <div className="text-2xl font-semibold text-gray-900">{rol._count?.usuarios || 0}</div>
+                  <div className="text-2xl font-semibold text-gray-900">{(rol as any)._count?.usuarios || 0}</div>
                 </div>
                 <div>
                   <div className="text-sm text-gray-600">Módulos con permisos</div>
-                  <div className="text-2xl font-semibold text-gray-900">{rol._count?.permisos || 0}</div>
+                  <div className="text-2xl font-semibold text-gray-900">{Array.from(permissions.keys()).length}</div>
                 </div>
               </div>
             </form>
@@ -318,11 +348,26 @@ export function ModalEditRol({ open, onClose, rol, onSave }: ModalEditRolProps) 
                   <div className="flex items-center justify-between mb-6">
                     <h3 className="text-lg font-semibold">Permisos por Módulo</h3>
                     <div className="text-sm text-gray-600">
-                      {(rol.permisos?.length || 0)} de {modulos.length} módulos configurados
+                      {Array.from(permissions.keys()).length} de {modulos.length} módulos configurados
                     </div>
                   </div>
 
-                  {modulos.map((modulo) => {
+                  {(() => {
+                    console.log('🔍 Renderizando módulos en modal:', { 
+                      totalModulos: modulos.length, 
+                      permisosMapa: Array.from(permissions.entries()),
+                      modulos: modulos.map(m => ({ id: m.id, nombre: m.nombre }))
+                    })
+                    return null
+                  })()}
+
+                  {modulos.length === 0 ? (
+                    <div className="text-center py-8">
+                      <Package className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+                      <p className="text-gray-600">No hay módulos disponibles</p>
+                    </div>
+                  ) : (
+                    modulos.map((modulo) => {
                     const permission = getModuloPermission(modulo.id)
                     const hasAnyPermission = permission.crear || permission.leer || permission.actualizar || permission.eliminar
                     
@@ -411,7 +456,7 @@ export function ModalEditRol({ open, onClose, rol, onSave }: ModalEditRolProps) 
                         </div>
                       </div>
                     )
-                  })}
+                  }))}
 
                   {/* Resumen de cambios */}
                   {hasPermissionChanges && (
@@ -474,8 +519,8 @@ export function ModalEditRol({ open, onClose, rol, onSave }: ModalEditRolProps) 
             <div className="flex gap-2">
               <Button
                 variant="outline"
-                onClick={() => {
-                  initializePermissions()
+                onClick={async () => {
+                  await initializePermissions()
                   setHasPermissionChanges(false)
                 }}
                 disabled={isLoading}

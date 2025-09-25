@@ -1,5 +1,5 @@
 import React, { useState } from 'react'
-import { X, Loader2, AlertCircle, User, Mail, Building, MapPin, Briefcase, Shield } from 'lucide-react'
+import { X, Loader2, AlertCircle, User, Mail, Shield } from 'lucide-react'
 import { usuariosService, type CreateUsuarioRequest } from '../../../services'
 import { Button } from '../base/button'
 import { SelectRoles } from '../selects/SelectRoles'
@@ -247,7 +247,7 @@ export function ModalAddUser({ open, onClose, onSave }: ModalAddUserProps) {
             <Button
               type="submit"
               disabled={isLoading}
-              className="bg-blue-600 hover:bg-blue-700 text-white"
+              className="bg-green-600 hover:bg-green-700 text-white"
             >
               {isLoading ? (
                 <>

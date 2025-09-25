@@ -39,7 +39,7 @@ export interface Usuario {
   sedeId?: number
   areaId?: number
   cargoId?: number
-  // rolId NO existe - el rol viene a través del cargo
+  rolId?: number
   createdAt: string
   updatedAt: string
   sede?: Sede
@@ -57,6 +57,7 @@ export interface CreateUsuarioRequest {
   empleadoSapId?: number
   nombreCompletoSap?: string
   jefeDirectoSapId?: number
+  rolId?: number
   // Removed sedeId, areaId, cargoId as these tables no longer exist
 }
 
@@ -70,6 +71,7 @@ export interface UpdateUsuarioRequest {
   // empleadoSapId y nombreCompletoSap son campos de solo lectura del SAP
   jefeDirectoSapId?: number
   activo?: boolean
+  rolId?: number
   // Removed sedeId, areaId, cargoId as these tables no longer exist
 }
 
@@ -82,7 +84,13 @@ class UsuariosService {
       })
 
       const data = await handleApiResponse(response)
-      return Array.isArray(data) ? data : data.usuarios || []
+      const usuarios = Array.isArray(data) ? data : data.usuarios || []
+      
+      // Mapear rolID a rolId para compatibilidad con el frontend
+      return usuarios.map((usuario: any) => ({
+        ...usuario,
+        rolId: usuario.rolID || usuario.rolId
+      }))
     } catch (error) {
       console.error('Error en usuariosService.getAll:', error)
       throw error
@@ -96,7 +104,13 @@ class UsuariosService {
         headers: API_CONFIG.DEFAULT_HEADERS
       })
 
-      return await handleApiResponse(response)
+      const usuario = await handleApiResponse(response)
+      
+      // Mapear rolID a rolId para compatibilidad con el frontend
+      return {
+        ...usuario,
+        rolId: usuario.rolID || usuario.rolId
+      }
     } catch (error) {
       console.error('Error en usuariosService.getById:', error)
       throw error
@@ -105,13 +119,27 @@ class UsuariosService {
 
   async create(usuario: CreateUsuarioRequest): Promise<Usuario> {
     try {
+      // Mapear rolId a rolID para el backend
+      const usuarioParaBackend = {
+        ...usuario,
+        rolID: usuario.rolId,
+        rolId: undefined
+      }
+      delete usuarioParaBackend.rolId
+
       const response = await fetch(buildUrl(API_CONFIG.ENDPOINTS.USUARIOS), {
         method: 'POST',
         headers: API_CONFIG.DEFAULT_HEADERS,
-        body: JSON.stringify(usuario)
+        body: JSON.stringify(usuarioParaBackend)
       })
 
-      return await handleApiResponse(response)
+      const usuarioCreado = await handleApiResponse(response)
+      
+      // Mapear rolID a rolId para compatibilidad con el frontend
+      return {
+        ...usuarioCreado,
+        rolId: usuarioCreado.rolID || usuarioCreado.rolId
+      }
     } catch (error) {
       console.error('Error en usuariosService.create:', error)
       throw error
@@ -122,10 +150,18 @@ class UsuariosService {
     try {
       console.log('🔄 Actualizando usuario:', { id, usuario })
       
+      // Mapear rolId a rolID para el backend
+      const usuarioParaBackend = {
+        ...usuario,
+        rolID: usuario.rolId,
+        rolId: undefined
+      }
+      delete usuarioParaBackend.rolId
+      
       const response = await fetch(buildUrl(`${API_CONFIG.ENDPOINTS.USUARIOS}/${id}`), {
         method: 'PATCH', // Cambio de PUT a PATCH
         headers: API_CONFIG.DEFAULT_HEADERS,
-        body: JSON.stringify(usuario)
+        body: JSON.stringify(usuarioParaBackend)
       })
 
       console.log('📥 Respuesta del servidor:', {
@@ -134,7 +170,13 @@ class UsuariosService {
         url: response.url
       })
 
-      return await handleApiResponse(response)
+      const usuarioActualizado = await handleApiResponse(response)
+      
+      // Mapear rolID a rolId para compatibilidad con el frontend
+      return {
+        ...usuarioActualizado,
+        rolId: usuarioActualizado.rolID || usuarioActualizado.rolId
+      }
     } catch (error) {
       console.error('Error en usuariosService.update:', error)
       throw error

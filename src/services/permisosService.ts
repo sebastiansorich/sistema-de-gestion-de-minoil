@@ -55,7 +55,42 @@ class PermisosService {
 
   async getByRol(rolId: number): Promise<Permiso[]> {
     try {
-      const response = await fetch(buildUrl(`/permisos?rolId=${rolId}`), {
+      console.log(`🔗 permisosService.getByRol: Llamando GET /permisos?rolId=${rolId}`)
+      const url = buildUrl(`/permisos?rolId=${rolId}`)
+      console.log(`🔗 URL completa: ${url}`)
+      
+      const response = await fetch(url, {
+        method: 'GET',
+        headers: API_CONFIG.DEFAULT_HEADERS
+      })
+
+      console.log(`📥 Respuesta del servidor:`, {
+        status: response.status,
+        statusText: response.statusText,
+        ok: response.ok
+      })
+
+      const data = await handleApiResponse(response)
+      console.log(`📋 Datos recibidos del servidor para rolId ${rolId}:`, data)
+      
+      let permisos = Array.isArray(data) ? data : data.data || data.permisos || []
+      console.log(`🔍 Permisos antes del filtrado para rolId ${rolId}:`, permisos.length)
+      
+      // FILTRO TEMPORAL: El backend no está filtrando por rolId, así que lo hacemos aquí
+      permisos = permisos.filter((permiso: any) => permiso.rolId === rolId)
+      console.log(`✅ Permisos filtrados para rolId ${rolId}:`, permisos)
+      console.log(`📊 Cantidad final de permisos para rolId ${rolId}: ${permisos.length}`)
+      
+      return permisos
+    } catch (error) {
+      console.error('Error en permisosService.getByRol:', error)
+      throw error
+    }
+  }
+
+  async getByModulo(moduloId: number): Promise<Permiso[]> {
+    try {
+      const response = await fetch(buildUrl(`/permisos/modulo/${moduloId}`), {
         method: 'GET',
         headers: API_CONFIG.DEFAULT_HEADERS
       })
@@ -63,7 +98,7 @@ class PermisosService {
       const data = await handleApiResponse(response)
       return Array.isArray(data) ? data : data.permisos || []
     } catch (error) {
-      console.error('Error en permisosService.getByRol:', error)
+      console.error('Error en permisosService.getByModulo:', error)
       throw error
     }
   }

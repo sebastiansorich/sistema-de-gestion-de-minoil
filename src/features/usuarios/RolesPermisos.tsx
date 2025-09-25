@@ -1,9 +1,7 @@
 import React, { useState, useEffect } from 'react'
-import { rolesService, modulosService, type Rol, type Modulo } from '../../services'
+import { rolesService, modulosService, permisosService, type Rol, type Modulo } from '../../services'
 import { Loader2, AlertCircle, Plus, Edit, Trash2, Search, Shield, Users, Package, Check, X } from 'lucide-react'
 import { ModalAddRol, ModalEditRol, ModalConfirm, Pagination, Button } from '../../components/ui'
-import { useAuth } from '../../contexts/AuthContext'
-import { hasPermission } from '../../lib/utils'
 
 export default function RolesPermisos() {
   const [roles, setRoles] = useState<Rol[]>([])
@@ -43,12 +41,53 @@ export default function RolesPermisos() {
       setIsLoading(true)
       setError(null)
       
+      console.log('🔄 Cargando roles y módulos...')
+      
       const [rolesData, modulosData] = await Promise.all([
         rolesService.getAll(),
         modulosService.getAll()
       ])
       
-      setRoles(rolesData)
+      console.log('📋 Roles cargados:', rolesData)
+      console.log('📋 Módulos cargados:', modulosData)
+      
+      // Cargar permisos para cada rol usando el endpoint específico
+      const rolesConPermisos = await Promise.all(
+        rolesData.map(async (rol) => {
+          try {
+            console.log(`🔍 Cargando permisos para rol ${rol.nombre} (ID: ${rol.id})...`)
+            
+            // Usar el servicio de permisos
+            console.log(`🔗 Llamando permisosService.getByRol(${rol.id})`)
+            const permisos = await permisosService.getByRol(rol.id)
+            console.log(`📋 Respuesta permisosService para rol ${rol.nombre}:`, permisos)
+            console.log(`📊 Cantidad de permisos recibidos para rol ${rol.nombre}: ${permisos.length}`)
+            
+            // Normalizar permisos (1/0 a true/false)
+            const permisosNormalizados = permisos.map((permiso: any) => ({
+              ...permiso,
+              crear: Boolean(permiso.crear),
+              leer: Boolean(permiso.leer),
+              actualizar: Boolean(permiso.actualizar),
+              eliminar: Boolean(permiso.eliminar)
+            }))
+            
+            console.log(`✅ Permisos normalizados para rol ${rol.nombre}:`, permisosNormalizados)
+            
+            return {
+              ...rol,
+              permisos: permisosNormalizados
+            }
+          } catch (err) {
+            console.error(`❌ Error cargando permisos para rol ${rol.nombre}:`, err)
+            return { ...rol, permisos: [] }
+          }
+        })
+      )
+      
+      console.log('✅ Todos los roles con permisos cargados:', rolesConPermisos)
+      
+      setRoles(rolesConPermisos as any)
       setModulos(modulosData)
     } catch (err) {
       console.error('Error cargando datos:', err)
@@ -93,13 +132,18 @@ export default function RolesPermisos() {
   }
 
   const getModuloByPermission = (permiso: any) => {
+    // Los permisos del endpoint ya incluyen el módulo completo
+    if (permiso.modulo) {
+      return permiso.modulo
+    }
+    // Fallback: buscar en la lista de módulos cargados
     return modulos.find(m => m.id === permiso.moduloId)
   }
 
   const handleDelete = async (rol: Rol) => {
     setConfirmData({
       title: 'Eliminar Rol',
-      description: `¿Estás seguro de que deseas eliminar el rol "${rol.nombre}"? Esta acción no se puede deshacer y afectará a ${rol._count?.usuarios || 0} usuarios que tienen este rol asignado.`,
+      description: `¿Estás seguro de que deseas eliminar el rol "${rol.nombre}"? Esta acción no se puede deshacer y afectará a ${(rol as any)._count?.usuarios || 0} usuarios que tienen este rol asignado.`,
       operation: 'delete',
       entityName: rol.nombre,
       isLoading: false
@@ -243,7 +287,7 @@ export default function RolesPermisos() {
                     <Users className="w-4 h-4" />
                     <span>Usuarios asignados</span>
                   </div>
-                  <span className="font-medium">{rol._count?.usuarios || 0}</span>
+                  <span className="font-medium">{(rol as any)._count?.usuarios || 0}</span>
                 </div>
                 
                 <div className="flex items-center justify-between text-sm">
@@ -251,7 +295,13 @@ export default function RolesPermisos() {
                     <Package className="w-4 h-4" />
                     <span>Módulos con acceso</span>
                   </div>
-                  <span className="font-medium">{rol._count?.permisos || 0}</span>
+                  <span className="font-medium">
+                    {(() => {
+                      const count = (rol as any).permisos?.length || 0
+                      console.log(`📊 Conteo permisos para rol ${rol.nombre}:`, count, (rol as any).permisos)
+                      return count
+                    })()}
+                  </span>
                 </div>
 
                 <div className="flex items-center justify-between text-sm">
@@ -280,12 +330,22 @@ export default function RolesPermisos() {
                 <div className="mt-4 border-t pt-4">
                   <h4 className="font-medium text-gray-900 mb-3">Permisos por Módulo</h4>
                   <div className="space-y-2">
-                    {!rol.permisos || rol.permisos.length === 0 ? (
-                      <p className="text-sm text-gray-500 text-center py-2">
-                        No hay permisos asignados
-                      </p>
+                    {(() => {
+                      console.log(`🔍 Mostrando permisos para rol ${rol.nombre}:`, (rol as any).permisos)
+                      console.log(`📊 Cantidad de permisos:`, (rol as any).permisos?.length || 0)
+                      return null
+                    })()}
+                    {!(rol as any).permisos || (rol as any).permisos.length === 0 ? (
+                      <div>
+                        <p className="text-sm text-gray-500 text-center py-2">
+                          No hay permisos asignados
+                        </p>
+                        <p className="text-xs text-gray-400 text-center">
+                          Debug: {(rol as any).permisos ? `Array vacío (${(rol as any).permisos.length})` : 'permisos es null/undefined'}
+                        </p>
+                      </div>
                     ) : (
-                      rol.permisos.map((permiso) => {
+                      (rol as any).permisos.map((permiso: any) => {
                         const modulo = getModuloByPermission(permiso)
                         return (
                           <div key={permiso.id} className="border rounded-lg p-3 bg-gray-50">
@@ -360,29 +420,7 @@ export default function RolesPermisos() {
         </div>
       )}
 
-      {/* Resumen de módulos disponibles */}
-      <div className="bg-blue-50 rounded-lg p-6">
-        <h3 className="font-semibold text-gray-900 mb-4">Módulos del Sistema</h3>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-          {modulos.map((modulo) => (
-            <div key={modulo.id} className="bg-white rounded-lg p-4 border">
-              <div className="flex items-center gap-3 mb-2">
-                <Package className="w-5 h-5 text-blue-600" />
-                <h4 className="font-medium text-sm">{modulo.nombre}</h4>
-              </div>
-              <p className="text-xs text-gray-600 mb-2">{modulo.descripcion}</p>
-              <div className="text-xs text-gray-500">
-                <span className="inline-block bg-gray-100 px-2 py-1 rounded">
-                  {modulo.ruta}
-                </span>
-              </div>
-              <div className="text-xs text-gray-500 mt-2">
-                {modulo._count?.permisos || 0} roles con acceso
-              </div>
-            </div>
-          ))}
-        </div>
-      </div>
+     
 
       {/* Modal de agregar rol */}
       <ModalAddRol

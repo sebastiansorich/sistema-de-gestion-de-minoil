@@ -253,18 +253,27 @@ export default function Sidebar() {
 		return null
 	}
 
-	// Cargar módulos desde el backend
+	// Cargar módulos desde el backend cuando cambie el usuario
 	useEffect(() => {
-		loadModulos()
-	}, [])
+		if (user?.id) {
+			loadModulos()
+		}
+	}, [user?.id])
 
 	const loadModulos = async () => {
 		try {
 			setIsLoading(true)
 			setError(null)
 			
-			// Usar el nuevo endpoint jerárquico del sidebar
-			const data = await modulosService.getSidebarModules()
+			// Validar que tenemos un usuario autenticado
+			if (!user?.id) {
+				console.warn('⚠️ No se puede cargar módulos: usuario no autenticado')
+				setError('Usuario no autenticado')
+				return
+			}
+			
+			// Usar el nuevo endpoint jerárquico del sidebar con usuario específico
+			const data = await modulosService.getSidebarModules(user.id)
 			
 					// Filtrar solo módulos activos (mostrar todos los módulos activos)
 		const filteredModulos = data
@@ -277,7 +286,7 @@ export default function Sidebar() {
 			.sort((a, b) => a.orden - b.orden) // Ordenar por campo orden
 			
 			setModulos(filteredModulos)
-			console.log('🔄 Sidebar: Módulos jerárquicos recargados desde /modulos/sidebar')
+			console.log(`🔄 Sidebar: Módulos jerárquicos recargados para usuario ${user.id} desde /modulos/sidebar/usuario/${user.id}`)
 		} catch (err) {
 			console.error('Error cargando módulos:', err)
 			setError('Error al cargar módulos')
