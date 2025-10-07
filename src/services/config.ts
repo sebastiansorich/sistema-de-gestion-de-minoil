@@ -10,7 +10,8 @@ export const API_CONFIG = {
     AUTH: '/auth/login',
     USUARIOS: '/usuarios',
     ROLES: '/roles',
-    MODULOS: '/modulos'
+    MODULOS: '/modulos',
+    COMISIONES: '/comisiones'
   },
   
   // Configuración de headers por defecto

@@ -5,7 +5,7 @@ import Login from "../features/auth/Login";
 import Home from "../features/Home";
 import IngresarSalida from "../features/salidas/IngresarSalida";
 import GestionarSalidas from "../features/salidas/GestionarSalidas";
-import Mercaderistas from "../features/marketing/Mercaderistas";
+import MercaderistaComisiones from "../features/marketing/mercaderista";
 import ReportesSala from "../features/marketing/ReportesSala";
 import PlanillaComisiones from "../features/rrhh/PlanillaComisiones";
 import Vacaciones from "../features/rrhh/Vacaciones";
@@ -71,7 +71,7 @@ export default function AppRouter() {
                 } />
                 <Route path="/marketing/mercaderistas" element={
                   <PrivateRoute permission={null}>
-                    <Mercaderistas />
+                    <MercaderistaComisiones />
                   </PrivateRoute>
                 } />
                 <Route path="/marketing/reportes-sala" element={
