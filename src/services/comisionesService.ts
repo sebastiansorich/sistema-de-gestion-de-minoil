@@ -6,6 +6,7 @@ export interface Comision {
   id: number
   userId?: number | null
   empId?: number | null // Agregado empId
+  empID?: number | null // Campo de la API real
   // Removido mercaderista - el backend no lo acepta
   regional?: string | null
   canal?: string | null // Agregado canal como campo requerido
@@ -49,15 +50,36 @@ class ComisionesService {
     const url = buildUrl(`${API_CONFIG.ENDPOINTS.COMISIONES}${this.toQuery(params)}`)
     const res = await fetch(url, { method: 'GET', headers: API_CONFIG.DEFAULT_HEADERS })
     const json = await handleApiResponse(res)
-    if (Array.isArray(json)) return { data: json }
-    return { data: json?.data ?? [], pagination: json?.pagination }
+    
+    let comisionesRaw: any[] = []
+    if (Array.isArray(json)) {
+      comisionesRaw = json
+    } else {
+      comisionesRaw = json?.data ?? []
+    }
+    
+    // Mapear los datos para normalizar empID/empId
+    const comisionesMapeadas: Comision[] = comisionesRaw.map((c: any) => ({
+      ...c,
+      empId: c.empID || c.empId || null,
+      empID: c.empID || c.empId || null
+    }))
+    
+    return { data: comisionesMapeadas, pagination: json?.pagination }
   }
 
   async getById(id: number): Promise<Comision> {
     const res = await fetch(buildUrl(`${API_CONFIG.ENDPOINTS.COMISIONES}/${id}`), {
       method: 'GET', headers: API_CONFIG.DEFAULT_HEADERS
     })
-    return await handleApiResponse(res)
+    const data = await handleApiResponse(res)
+    
+    // Mapear los datos para normalizar empID/empId
+    return {
+      ...data,
+      empId: data.empID || data.empId || null,
+      empID: data.empID || data.empId || null
+    }
   }
 
   async create(payload: Partial<Comision>): Promise<Comision> {

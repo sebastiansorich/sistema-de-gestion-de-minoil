@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Plus, Upload, Save, Edit, Trash2 } from 'lucide-react'
 import { Button, Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../../components/ui'
-import { SelectTipoMercaderista } from '../../components/ui'
+import { SelectTipoMercaderista, SelectEmpleados, SelectClientes } from '../../components/ui'
 import { comisionesService, type Comision } from '../../services/comisionesService'
 
 type Filtro = {
@@ -19,7 +19,7 @@ type Registro = {
   regional: string
   canal: string
   mercaderista: string
-  empId: number | null // Agregado empId
+  empId: number | null
   tipo: string
   ruta: string
   cliente: string
@@ -58,7 +58,7 @@ export default function MercaderistaComisiones() {
           regional: c.regional || '',
           canal: c.canal || '',
           mercaderista: '', // Campo removido del backend, mantener vacío en UI
-          empId: c.empId || null, // Agregado empId
+          empId: c.empId || c.empID || null, // Usar empId mapeado o empID original
           tipo: c.tipoMercaderista || '',
           ruta: c.ruta || '',
           cliente: c.cliente || '',
@@ -195,10 +195,10 @@ export default function MercaderistaComisiones() {
             <Button onClick={handleImportar} variant="outline" className="flex items-center gap-2  bg-white" size="sm">
               <Upload className="w-4 h-4" /> Importar
             </Button>
-            <Button onClick={handleGuardar} className="flex items-center gap- bg-blue-300"  size="sm">
+            <Button onClick={handleGuardar} className="flex items-center gap-2 bg-blue-300" size="sm">
               <Save className="w-4 h-4" /> Guardar
             </Button>
-            <Button onClick={handleAgregar} className="flex items-center gap- bg-yellow-300" size="sm">
+            <Button onClick={handleAgregar} className="flex items-center gap-2 bg-yellow-300" size="sm">
               <Plus className="w-4 h-4" /> Agregar
             </Button>
           </div>
@@ -273,12 +273,11 @@ export default function MercaderistaComisiones() {
                 <TableRow key={r.id}>
                   <TableCell>
                     {editId === r.id ? (
-                      <input
-                        type="number"
-                        className="w-full px-2 py-1 border rounded"
-                        value={r.empId || ''}
-                        onChange={(e) => actualizarCampo(r.id, 'empId', e.target.value ? Number(e.target.value) : null)}
-                        placeholder="Emp ID"
+                      <SelectEmpleados
+                        value={r.empId || undefined}
+                        onChange={(empId) => actualizarCampo(r.id, 'empId', empId)}
+                        placeholder="Seleccionar empleado..."
+                        className="w-full"
                       />
                     ) : (
                       r.empId || '-'
@@ -307,10 +306,11 @@ export default function MercaderistaComisiones() {
                   </TableCell>
                   <TableCell>
                     {editId === r.id ? (
-                      <input
-                        className="w-full px-2 py-1 border rounded"
+                      <SelectClientes
                         value={r.cliente}
-                        onChange={(e) => actualizarCampo(r.id, 'cliente', e.target.value)}
+                        onChange={(cliente) => actualizarCampo(r.id, 'cliente', cliente)}
+                        placeholder="Seleccionar cliente..."
+                        className="w-full"
                       />
                     ) : (
                       r.cliente
