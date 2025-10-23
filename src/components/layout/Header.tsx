@@ -4,6 +4,7 @@ import { useAuth } from "../../contexts/AuthContext"
 import { useLocation } from "react-router-dom"
 import Breadcrumb from "../ui/navigation/Breadcrumb"
 import { ModalChangePassword } from "../ui/modals"
+import { buildUrl } from "../../services/config"
 
 // Mapeo de rutas a títulos dinámicos
 const getPageTitle = (pathname: string): string => {
@@ -69,7 +70,7 @@ export default function Header() {
     
     try {
       console.log('🔍 Header - Obteniendo información del empleado')
-      const response = await fetch('http://localhost:3000/sap/empleados-sap')
+      const response = await fetch(buildUrl('/sap/empleados-sap'))
       const data = await response.json()
       
       console.log('🔍 Header - Respuesta completa de SAP:', data)

@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react'
 import { usuariosService, type Usuario } from '../../services'
 import { Loader2, AlertCircle, Plus, Edit, Trash2, Search, Building, MapPin, Briefcase, Shield } from 'lucide-react'
 import { ModalEditUser, ModalAddUser, ModalConfirm, Pagination } from '../../components/ui'
+import { buildUrl } from '../../services/config'
 
 export default function Usuarios() {
   const [usuarios, setUsuarios] = useState<Usuario[]>([])
@@ -36,7 +37,7 @@ export default function Usuarios() {
   // Función para obtener información de empleados desde SAP
   const getEmpleadosInfo = async () => {
     try {
-      const response = await fetch('http://localhost:3000/sap/empleados-sap')
+      const response = await fetch(buildUrl('/sap/empleados-sap'))
       const data = await response.json()
       
       if (data.success && data.data.empleados) {
