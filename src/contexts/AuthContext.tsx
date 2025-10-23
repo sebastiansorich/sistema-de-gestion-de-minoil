@@ -12,6 +12,7 @@ export interface User {
   password: null
   autenticacion: 'ldap' | 'local'
   empleadoSapId: number
+  empID?: number
   nombreCompletoSap: string
   jefeDirectoSapId: number | null
   activo: boolean

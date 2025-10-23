@@ -56,13 +56,26 @@ export interface UpdateModuloRequest {
 class ModulosService {
   async getAll(): Promise<Modulo[]> {
     try {
+      console.log('🔄 Cargando todos los módulos desde modulosService.getAll()...')
       const response = await fetch(buildUrl(API_CONFIG.ENDPOINTS.MODULOS), {
         method: 'GET',
         headers: API_CONFIG.DEFAULT_HEADERS
       })
 
+      console.log('📥 Respuesta del servidor (módulos):', {
+        status: response.status,
+        statusText: response.statusText,
+        ok: response.ok
+      })
+
       const data = await handleApiResponse(response)
-      return Array.isArray(data) ? data : data.modulos || []
+      console.log('📋 Datos recibidos del servidor (módulos):', data)
+      
+      // La respuesta viene en formato { success: true, data: [...] }
+      const modules = Array.isArray(data) ? data : data.data || data.modulos || []
+      console.log('✅ Módulos procesados:', modules.length, 'módulos encontrados')
+      
+      return modules
     } catch (error) {
       console.error('Error en modulosService.getAll:', error)
       throw error

@@ -11,6 +11,7 @@ export default function Usuarios() {
   const [editModalOpen, setEditModalOpen] = useState(false)
   const [addModalOpen, setAddModalOpen] = useState(false)
   const [selectedUsuario, setSelectedUsuario] = useState<Usuario | null>(null)
+  const [empleadosInfo, setEmpleadosInfo] = useState<{[key: number]: {sede: string, area: string, cargo: string}}>({})
   
   // Estados para modal de confirmación
   const [confirmModalOpen, setConfirmModalOpen] = useState(false)
@@ -31,6 +32,37 @@ export default function Usuarios() {
   useEffect(() => {
     loadUsuarios()
   }, [])
+
+  // Función para obtener información de empleados desde SAP
+  const getEmpleadosInfo = async () => {
+    try {
+      const response = await fetch('http://localhost:3000/sap/empleados-sap')
+      const data = await response.json()
+      
+      if (data.success && data.data.empleados) {
+        const empleadosMap: {[key: number]: {sede: string, area: string, cargo: string}} = {}
+        
+        data.data.empleados.forEach((empleado: any) => {
+          empleadosMap[empleado.empID] = {
+            sede: empleado.sede || 'Sin sede',
+            area: empleado.area || 'Sin área',
+            cargo: empleado.cargo || 'Sin cargo'
+          }
+        })
+        
+        setEmpleadosInfo(empleadosMap)
+      }
+    } catch (error) {
+      console.error('Error obteniendo información de empleados:', error)
+    }
+  }
+
+  // Cargar información de empleados cuando se cargan los usuarios
+  useEffect(() => {
+    if (usuarios.length > 0) {
+      getEmpleadosInfo()
+    }
+  }, [usuarios])
 
   const loadUsuarios = async () => {
     try {
@@ -255,15 +287,30 @@ export default function Usuarios() {
                       <div className="text-sm text-gray-900">
                         <div className="flex items-center gap-1 mb-1">
                           <Building className="w-3 h-3 text-gray-400" />
-                          <span className="font-medium">{usuario.sede?.nombre || 'Sin sede'}</span>
+                          <span className="font-medium">
+                            {usuario.empID && empleadosInfo[usuario.empID] 
+                              ? empleadosInfo[usuario.empID].sede 
+                              : (usuario.sede?.nombre || 'Sin sede')
+                            }
+                          </span>
                         </div>
                         <div className="flex items-center gap-1 mb-1">
                           <MapPin className="w-3 h-3 text-gray-400" />
-                          <span className="text-gray-600">{usuario.area?.nombre || 'Sin área'}</span>
+                          <span className="text-gray-600">
+                            {usuario.empID && empleadosInfo[usuario.empID] 
+                              ? empleadosInfo[usuario.empID].area 
+                              : (usuario.area?.nombre || 'Sin área')
+                            }
+                          </span>
                         </div>
                         <div className="flex items-center gap-1">
                           <Briefcase className="w-3 h-3 text-gray-400" />
-                          <span className="text-gray-600">{usuario.cargo?.nombre || 'Sin cargo'}</span>
+                          <span className="text-gray-600">
+                            {usuario.empID && empleadosInfo[usuario.empID] 
+                              ? empleadosInfo[usuario.empID].cargo 
+                              : (usuario.cargo?.nombre || 'Sin cargo')
+                            }
+                          </span>
                           {usuario.cargo?.nivel && (
                             <span className="text-xs text-gray-400 ml-1">(Nivel {usuario.cargo.nivel})</span>
                           )}

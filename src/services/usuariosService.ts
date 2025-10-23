@@ -14,6 +14,7 @@ export interface Cargo {
   id: number
   nombre: string
   nivel: number
+  rol?: Rol
 }
 export interface Rol {
   id: number
@@ -31,6 +32,7 @@ export interface Usuario {
   password: string | null
   autenticacion: 'ldap' | 'local'
   empleadoSapId: number | null
+  empID?: number
   nombreCompletoSap: string | null
   jefeDirectoSapId: number | null
   activo: boolean
@@ -44,6 +46,7 @@ export interface Usuario {
   updatedAt: string
   sede?: Sede
   area?: Area
+  cargo?: Cargo
   rol?: Rol
 }
 
@@ -54,10 +57,11 @@ export interface CreateUsuarioRequest {
   apellido: string
   password?: string
   autenticacion: 'ldap' | 'local'
-  empleadoSapId?: number
   nombreCompletoSap?: string
   jefeDirectoSapId?: number
   rolId?: number
+  empID?: number
+  activo?: boolean
   // Removed sedeId, areaId, cargoId as these tables no longer exist
 }
 

@@ -1,8 +1,9 @@
 import React, { useState } from 'react'
-import { X, Loader2, AlertCircle, User, Mail, Shield } from 'lucide-react'
-import { usuariosService, type CreateUsuarioRequest } from '../../../services'
+import { X, Loader2, AlertCircle, User, Mail, Shield, Users } from 'lucide-react'
+import { usuariosService, type CreateUsuarioRequest, empleadosService } from '../../../services'
 import { Button } from '../base/button'
 import { SelectRoles } from '../selects/SelectRoles'
+import { SelectEmpleados } from '../selects/SelectEmpleados'
 
 interface ModalAddUserProps {
   open: boolean
@@ -16,8 +17,13 @@ export function ModalAddUser({ open, onClose, onSave }: ModalAddUserProps) {
     email: '',
     nombre: '',
     apellido: '',
-    autenticacion: 'ldap',
-    rolId: undefined
+    password: '',
+    autenticacion: 'local',
+    rolId: undefined,
+    empID: undefined,
+    jefeDirectoSapId: undefined,
+    nombreCompletoSap: '',
+    activo: true
   })
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -28,8 +34,13 @@ export function ModalAddUser({ open, onClose, onSave }: ModalAddUserProps) {
       email: '',
       nombre: '',
       apellido: '',
-      autenticacion: 'ldap',
-      rolId: undefined
+      password: '',
+      autenticacion: 'local',
+      rolId: undefined,
+      empID: undefined,
+      jefeDirectoSapId: undefined,
+      nombreCompletoSap: '',
+      activo: true
     })
     setError(null)
   }
@@ -38,8 +49,18 @@ export function ModalAddUser({ open, onClose, onSave }: ModalAddUserProps) {
     e.preventDefault()
 
     // Validaciones
-    if (!formData.nombre.trim() || !formData.apellido.trim() || !formData.username.trim() || !formData.email.trim()) {
+    if (!formData.empID) {
+      setError('Debe seleccionar un empleado')
+      return
+    }
+    
+    if (!formData.nombre.trim() || !formData.apellido.trim() || !formData.username.trim() || !formData.email.trim() || !formData.password?.trim()) {
       setError('Todos los campos básicos son obligatorios')
+      return
+    }
+    
+    if (!formData.rolId) {
+      setError('Debe asignar un rol al usuario')
       return
     }
 
@@ -68,6 +89,42 @@ export function ModalAddUser({ open, onClose, onSave }: ModalAddUserProps) {
       ...prev,
       [field]: value === '' ? '' : value
     }))
+  }
+
+  const handleEmpleadoSelect = async (empId: number) => {
+    try {
+      const empleado = await empleadosService.getEmpleadoById(empId)
+      if (empleado) {
+        // Auto-rellenar campos basado en el empleado seleccionado
+        const nombreCompleto = empleado.nombreCompleto || empleado.nombre || ''
+        const partesNombre = nombreCompleto.split(' ')
+        const nombre = partesNombre[0] || ''
+        const apellido = partesNombre.slice(1).join(' ') || empleado.apellido || ''
+        
+        // Generar username: primera letra del nombre + apellido completo
+        const primeraLetraNombre = nombre.charAt(0).toLowerCase()
+        const apellidoLimpio = apellido.toLowerCase().replace(/\s+/g, '').replace(/[^a-z0-9]/g, '')
+        const username = `${primeraLetraNombre}${apellidoLimpio}`
+        
+        // Generar email basado en el username
+        const email = `${username}@minoil.com`
+        
+        setFormData(prev => ({
+          ...prev,
+          empID: empleado.empId,
+          nombre: nombre,
+          apellido: apellido,
+          username: username,
+          email: email,
+          nombreCompletoSap: empleado.nombreCompleto || empleado.nombre || '',
+          jefeDirectoSapId: empleado.jefeDirecto || 0,
+          autenticacion: 'local' // Siempre local
+        }))
+      }
+    } catch (err) {
+      console.error('Error obteniendo empleado:', err)
+      setError('Error al cargar información del empleado')
+    }
   }
 
   const handleClose = () => {
@@ -117,7 +174,24 @@ export function ModalAddUser({ open, onClose, onSave }: ModalAddUserProps) {
 
         {/* Form */}
         <form onSubmit={handleSubmit} className="p-6 space-y-6">
-          {/* Información básica */}
+          {/* Selección de Empleado */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              <Users className="w-4 h-4 inline mr-1" />
+              Seleccionar Empleado *
+            </label>
+            <SelectEmpleados
+              value={formData.empID}
+              onChange={handleEmpleadoSelect}
+              placeholder="Buscar empleado por ID o nombre..."
+              className="w-full"
+            />
+            <p className="text-xs text-gray-500 mt-1">
+              Selecciona un empleado para auto-rellenar la información del usuario
+            </p>
+          </div>
+
+          {/* Información básica (solo lectura) */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -127,10 +201,9 @@ export function ModalAddUser({ open, onClose, onSave }: ModalAddUserProps) {
               <input
                 type="text"
                 value={formData.nombre}
-                onChange={(e) => handleChange('nombre', e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                placeholder="Ingrese el nombre"
-                required
+                readOnly
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-gray-50 text-gray-700"
+                placeholder="Se completará automáticamente"
               />
             </div>
 
@@ -141,10 +214,9 @@ export function ModalAddUser({ open, onClose, onSave }: ModalAddUserProps) {
               <input
                 type="text"
                 value={formData.apellido}
-                onChange={(e) => handleChange('apellido', e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                placeholder="Ingrese el apellido"
-                required
+                readOnly
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-gray-50 text-gray-700"
+                placeholder="Se completará automáticamente"
               />
             </div>
 
@@ -156,10 +228,9 @@ export function ModalAddUser({ open, onClose, onSave }: ModalAddUserProps) {
               <input
                 type="email"
                 value={formData.email}
-                onChange={(e) => handleChange('email', e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                placeholder="usuario@minoil.com"
-                required
+                readOnly
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-gray-50 text-gray-700"
+                placeholder="Se completará automáticamente"
               />
             </div>
 
@@ -170,12 +241,29 @@ export function ModalAddUser({ open, onClose, onSave }: ModalAddUserProps) {
               <input
                 type="text"
                 value={formData.username}
-                onChange={(e) => handleChange('username', e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                placeholder="nombre.usuario"
-                required
+                readOnly
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-gray-50 text-gray-700"
+                placeholder="Se completará automáticamente"
               />
             </div>
+          </div>
+
+          {/* Contraseña */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Contraseña *
+            </label>
+            <input
+              type="password"
+              value={formData.password}
+              onChange={(e) => handleChange('password', e.target.value)}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+              placeholder="Ingrese la contraseña para el usuario"
+              required
+            />
+            <p className="text-xs text-gray-500 mt-1">
+              La contraseña será requerida para el primer inicio de sesión
+            </p>
           </div>
 
                      {/* Asignación de Rol */}
@@ -214,15 +302,14 @@ export function ModalAddUser({ open, onClose, onSave }: ModalAddUserProps) {
             <label className="block text-sm font-medium text-gray-700 mb-2">
               Tipo de Autenticación
             </label>
-            <select
-              value={formData.autenticacion}
-              onChange={(e) => handleChange('autenticacion', e.target.value as 'ldap' | 'local')}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-            >
-              <option value="local">Local</option>
-            </select>
+            <input
+              type="text"
+              value="Local"
+              readOnly
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-gray-50 text-gray-700"
+            />
             <p className="text-xs text-gray-500 mt-1">
-              LDAP es la opción recomendada para usuarios de la empresa
+              Los usuarios se crean con autenticación local por defecto
             </p>
           </div>
 
@@ -230,7 +317,7 @@ export function ModalAddUser({ open, onClose, onSave }: ModalAddUserProps) {
           <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
             <h4 className="font-medium text-yellow-900 mb-2">Información SAP</h4>
             <p className="text-sm text-yellow-800">
-              Los datos del empleado en SAP (ID, nombre completo, jefe directo) se sincronizarán automáticamente una vez creado el usuario.
+              Los datos del empleado seleccionado (ID: {formData.empID}, nombre completo, jefe directo) se sincronizarán automáticamente una vez creado el usuario.
             </p>
           </div>
 

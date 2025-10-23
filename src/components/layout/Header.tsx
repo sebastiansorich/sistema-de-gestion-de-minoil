@@ -28,6 +28,7 @@ const getPageTitle = (pathname: string): string => {
 export default function Header() {
   const [open, setOpen] = useState(false)
   const [showChangePasswordModal, setShowChangePasswordModal] = useState(false)
+  const [empleadoInfo, setEmpleadoInfo] = useState<{sede: string, area: string, cargo: string} | null>(null)
   const menuRef = useRef<HTMLDivElement>(null)
   const { logout, user } = useAuth()
   const location = useLocation()
@@ -52,6 +53,77 @@ export default function Header() {
     }
   }, [open])
 
+  // Función para obtener información del empleado desde SAP
+  const getEmpleadoInfo = async () => {
+    const empID = user?.empID
+    const nombreCompleto = user?.nombreCompletoSap || `${user?.nombre} ${user?.apellido}`
+    
+    console.log('🔍 Header - getEmpleadoInfo llamada')
+    console.log('🔍 Header - empID:', empID)
+    console.log('🔍 Header - nombreCompleto:', nombreCompleto)
+    
+    if (!empID && !nombreCompleto) {
+      console.log('🔍 Header - No hay empID ni nombreCompleto del usuario:', user)
+      return
+    }
+    
+    try {
+      console.log('🔍 Header - Obteniendo información del empleado')
+      const response = await fetch('http://localhost:3000/sap/empleados-sap')
+      const data = await response.json()
+      
+      console.log('🔍 Header - Respuesta completa de SAP:', data)
+      
+      if (data.success && data.data.empleados) {
+        console.log('🔍 Header - Total empleados encontrados:', data.data.empleados.length)
+        
+        // Buscar por empID primero, luego por nombre completo
+        let empleado = null
+        if (empID) {
+          empleado = data.data.empleados.find((emp: any) => emp.empID === empID)
+          console.log('🔍 Header - Búsqueda por empID:', empID, 'Resultado:', empleado)
+        }
+        
+        if (!empleado && nombreCompleto) {
+          empleado = data.data.empleados.find((emp: any) => 
+            emp.nombreCompletoSap?.toLowerCase() === nombreCompleto.toLowerCase()
+          )
+          console.log('🔍 Header - Búsqueda por nombreCompleto:', nombreCompleto, 'Resultado:', empleado)
+        }
+        
+        if (empleado) {
+          const info = {
+            sede: empleado.sede || 'Sin sede',
+            area: empleado.area || 'Sin área',
+            cargo: empleado.cargo || 'Sin cargo'
+          }
+          console.log('🔍 Header - Información del empleado:', info)
+          setEmpleadoInfo(info)
+        } else {
+          console.log('🔍 Header - No se encontró empleado con empID:', empID, 'o nombre:', nombreCompleto)
+        }
+      } else {
+        console.log('🔍 Header - Error en respuesta de SAP:', data)
+      }
+    } catch (error) {
+      console.error('Error obteniendo información del empleado:', error)
+    }
+  }
+
+  // Cargar información del empleado cuando se monta el componente
+  useEffect(() => {
+    console.log('🔍 Header - useEffect ejecutado')
+    console.log('🔍 Header - user?.empID:', user?.empID)
+    console.log('🔍 Header - user?.nombreCompletoSap:', user?.nombreCompletoSap)
+    
+    if (user?.empID || user?.nombreCompletoSap || (user?.nombre && user?.apellido)) {
+      console.log('🔍 Header - Llamando getEmpleadoInfo')
+      getEmpleadoInfo()
+    } else {
+      console.log('🔍 Header - No hay datos suficientes para buscar empleado')
+    }
+  }, [user?.empID, user?.nombreCompletoSap, user?.nombre, user?.apellido])
+
   const handleLogout = () => {
     setOpen(false)
     logout()
@@ -74,11 +146,21 @@ export default function Header() {
   const fullName = user ? `${user.nombre} ${user.apellido}` : ''
   
   // Formatear información adicional (estructura actualizada)
-  const cargoInfo = user?.cargo?.nombre || ''
+  const cargoInfo = empleadoInfo?.cargo || user?.cargo?.nombre || ''
   const cargoNivel = user?.cargo?.nivel || ''
-  const areaInfo = user?.area?.nombre || ''
-  const sedeInfo = user?.sede?.nombre || ''
-  const empleadoSapId = user?.empleadoSapId || ''
+  const areaInfo = empleadoInfo?.area || user?.area?.nombre || ''
+  const sedeInfo = empleadoInfo?.sede || user?.sede?.nombre || ''
+  const empleadoSapId = user?.empID || user?.empleadoSapId || ''
+  
+  // Debug logs
+  console.log('🔍 Header - Usuario completo:', user)
+  console.log('🔍 Header - user?.empID:', user?.empID)
+  console.log('🔍 Header - user?.empleadoSapId:', user?.empleadoSapId)
+  console.log('🔍 Header - empleadoInfo:', empleadoInfo)
+  console.log('🔍 Header - cargoInfo:', cargoInfo)
+  console.log('🔍 Header - areaInfo:', areaInfo)
+  console.log('🔍 Header - sedeInfo:', sedeInfo)
+  console.log('🔍 Header - empleadoSapId:', empleadoSapId)
 
   return (
     <header className="sticky top-0 z-30 w-full bg-white dark:bg-neutral-900 shadow-sm border-b border-gray-200 px-4 py-3">

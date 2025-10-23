@@ -15,7 +15,7 @@ export function ModalEditRol({ open, onClose, rol, onSave }: ModalEditRolProps) 
   const [modulos, setModulos] = useState<Modulo[]>([])
   const [isLoading, setIsLoading] = useState(false)
   const [isLoadingModulos, setIsLoadingModulos] = useState(false)
-  // Removed separate permission loading state
+  const [isLoadingPermissions, setIsLoadingPermissions] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [activeTab, setActiveTab] = useState<'basic' | 'permissions'>('basic')
   
@@ -32,7 +32,7 @@ export function ModalEditRol({ open, onClose, rol, onSave }: ModalEditRolProps) 
         descripcion: rol.descripcion,
         activo: rol.activo
       })
-      loadModulos()
+      // initializePermissions() ahora carga tanto módulos como permisos
       initializePermissions()
     }
     setError(null)
@@ -46,34 +46,92 @@ export function ModalEditRol({ open, onClose, rol, onSave }: ModalEditRolProps) 
     console.log(`🔄 Inicializando permisos para rol ${rol.nombre} (ID: ${rol.id})`)
     
     try {
-      // Cargar módulos que ya incluyen los permisos
-      const modulosConPermisos = await modulosService.getAll()
-      console.log(`📋 Módulos con permisos cargados:`, modulosConPermisos)
+      setIsLoadingModulos(true)
+      setIsLoadingPermissions(true)
+      
+      // Cargar todos los módulos disponibles y asignarlos al estado
+      console.log('🔄 Llamando a modulosService.getAll()...')
+      const todosLosModulos = await modulosService.getAll()
+      console.log(`📋 Resultado de modulosService.getAll():`, {
+        esArray: Array.isArray(todosLosModulos),
+        longitud: todosLosModulos?.length,
+        datos: todosLosModulos
+      })
+      
+      if (!Array.isArray(todosLosModulos)) {
+        console.error('❌ modulosService.getAll() no devolvió un array:', todosLosModulos)
+        throw new Error('Error: El servicio de módulos no devolvió un array válido')
+      }
+      
+      if (todosLosModulos.length === 0) {
+        console.warn('⚠️ modulosService.getAll() devolvió un array vacío')
+        setError('No se encontraron módulos en el sistema')
+      }
+      
+      setModulos(todosLosModulos) // ¡IMPORTANTE! Asignar los módulos al estado
+      console.log(`✅ Módulos asignados al estado:`, todosLosModulos.length, 'módulos')
+      setIsLoadingModulos(false)
+      
+      // Cargar permisos específicos del rol
+      console.log('🔄 Llamando a permisosService.getByRol()...')
+      const permisosDelRol = await permisosService.getByRol(rol.id)
+      console.log(`🔐 Permisos del rol ${rol.nombre}:`, {
+        esArray: Array.isArray(permisosDelRol),
+        longitud: permisosDelRol?.length,
+        datos: permisosDelRol
+      })
       
       const permissionsMap = new Map<number, PermisoRequest>()
       
-      // Buscar permisos de este rol en todos los módulos
-      modulosConPermisos.forEach(modulo => {
-        if (modulo.permisos && modulo.permisos.length > 0) {
-          const permisoDelRol = modulo.permisos.find(p => p.rolId === rol.id)
-          if (permisoDelRol) {
-            permissionsMap.set(modulo.id, {
-              moduloId: modulo.id,
-              crear: Boolean(permisoDelRol.crear),
-              leer: Boolean(permisoDelRol.leer),
-              actualizar: Boolean(permisoDelRol.actualizar),
-              eliminar: Boolean(permisoDelRol.eliminar)
-            })
-          }
+      // Para cada módulo, verificar si tiene permisos asignados
+      console.log('🔄 Procesando permisos para cada módulo...')
+      todosLosModulos.forEach((modulo, index) => {
+        console.log(`📋 Procesando módulo ${index + 1}/${todosLosModulos.length}:`, {
+          id: modulo.id,
+          nombre: modulo.nombre
+        })
+        
+        const permisoDelRol = permisosDelRol.find(p => p.moduloId === modulo.id)
+        
+        if (permisoDelRol) {
+          // El rol ya tiene permisos para este módulo
+          console.log(`✅ Permisos encontrados para módulo ${modulo.nombre}:`, permisoDelRol)
+          permissionsMap.set(modulo.id, {
+            moduloId: modulo.id,
+            crear: Boolean(permisoDelRol.crear),
+            leer: Boolean(permisoDelRol.leer),
+            actualizar: Boolean(permisoDelRol.actualizar),
+            eliminar: Boolean(permisoDelRol.eliminar)
+          })
+        } else {
+          // El rol no tiene permisos para este módulo (todos en false)
+          console.log(`❌ Sin permisos para módulo ${modulo.nombre}`)
+          permissionsMap.set(modulo.id, {
+            moduloId: modulo.id,
+            crear: false,
+            leer: false,
+            actualizar: false,
+            eliminar: false
+          })
         }
       })
       
-      console.log(`✅ Permisos inicializados para rol ${rol.nombre}:`, Array.from(permissionsMap.entries()))
+      console.log(`✅ Permisos inicializados para rol ${rol.nombre}:`, {
+        totalModulos: todosLosModulos.length,
+        permisosConfigurados: Array.from(permissionsMap.entries()).filter(([_, perm]) => 
+          perm.crear || perm.leer || perm.actualizar || perm.eliminar
+        ).length,
+        mapaCompleto: Array.from(permissionsMap.entries())
+      })
       setPermissions(permissionsMap)
+      setIsLoadingPermissions(false)
     } catch (error) {
       console.error(`❌ Error cargando permisos para rol ${rol.nombre}:`, error)
+      setError(`Error al cargar módulos y permisos del sistema: ${error instanceof Error ? error.message : 'Error desconocido'}`)
       // En caso de error, usar permisos vacíos
       setPermissions(new Map())
+      setIsLoadingModulos(false)
+      setIsLoadingPermissions(false)
     }
   }
 
@@ -338,10 +396,12 @@ export function ModalEditRol({ open, onClose, rol, onSave }: ModalEditRolProps) 
 
           {activeTab === 'permissions' && (
             <div className="p-6">
-              {isLoadingModulos ? (
+              {isLoadingModulos || isLoadingPermissions ? (
                 <div className="flex items-center justify-center py-8">
                   <Loader2 className="w-6 h-6 animate-spin mr-2" />
-                  <span>Cargando módulos...</span>
+                  <span>
+                    {isLoadingModulos ? 'Cargando módulos...' : 'Cargando permisos...'}
+                  </span>
                 </div>
               ) : (
                 <div className="space-y-4">
@@ -352,7 +412,8 @@ export function ModalEditRol({ open, onClose, rol, onSave }: ModalEditRolProps) 
                     </div>
                   </div>
 
-                  {(() => {
+                  {/* Debug info - solo en desarrollo */}
+                  {process.env.NODE_ENV === 'development' && (() => {
                     console.log('🔍 Renderizando módulos en modal:', { 
                       totalModulos: modulos.length, 
                       permisosMapa: Array.from(permissions.entries()),
@@ -367,96 +428,147 @@ export function ModalEditRol({ open, onClose, rol, onSave }: ModalEditRolProps) 
                       <p className="text-gray-600">No hay módulos disponibles</p>
                     </div>
                   ) : (
-                    modulos.map((modulo) => {
-                    const permission = getModuloPermission(modulo.id)
-                    const hasAnyPermission = permission.crear || permission.leer || permission.actualizar || permission.eliminar
-                    
-                    return (
-                      <div key={modulo.id} className="border rounded-lg p-4 bg-white hover:shadow-sm transition-shadow">
-                        <div className="flex items-center justify-between mb-4">
-                          <div className="flex items-center gap-3 flex-1">
-                            <Package className="w-5 h-5 text-blue-600" />
-                            <div className="flex-1">
-                              <h4 className="font-medium text-gray-900">{modulo.nombre}</h4>
-                              <p className="text-sm text-gray-600">{modulo.descripcion}</p>
-                              <span className="text-xs text-gray-500 bg-gray-100 px-2 py-1 rounded mt-1 inline-block">{modulo.ruta}</span>
+                    <div className="space-y-4">
+                      {modulos.map((modulo) => {
+                        const permission = getModuloPermission(modulo.id)
+                        const hasAnyPermission = permission.crear || permission.leer || permission.actualizar || permission.eliminar
+                        const totalPermissions = [permission.crear, permission.leer, permission.actualizar, permission.eliminar].filter(Boolean).length
+                        
+                        return (
+                          <div key={modulo.id} className="border rounded-lg p-5 bg-white hover:shadow-md transition-all duration-200">
+                            {/* Header del módulo */}
+                            <div className="flex items-center justify-between mb-4">
+                              <div className="flex items-center gap-3 flex-1">
+                                <div className="p-2 bg-blue-50 rounded-lg">
+                                  <Package className="w-5 h-5 text-blue-600" />
+                                </div>
+                                <div className="flex-1">
+                                  <div className="flex items-center gap-2 mb-1">
+                                    <h4 className="font-semibold text-gray-900">{modulo.nombre}</h4>
+                                    {hasAnyPermission && (
+                                      <span className="bg-green-100 text-green-800 text-xs px-2 py-1 rounded-full">
+                                        {totalPermissions}/4 permisos
+                                      </span>
+                                    )}
+                                  </div>
+                                  <p className="text-sm text-gray-600 mb-2">{modulo.descripcion}</p>
+                                  <div className="flex items-center gap-2">
+                                    <span className="text-xs text-gray-500 bg-gray-100 px-2 py-1 rounded">
+                                      {modulo.ruta}
+                                    </span>
+                                    {modulo.activo ? (
+                                      <span className="text-xs bg-green-100 text-green-800 px-2 py-1 rounded">
+                                        Activo
+                                      </span>
+                                    ) : (
+                                      <span className="text-xs bg-red-100 text-red-800 px-2 py-1 rounded">
+                                        Inactivo
+                                      </span>
+                                    )}
+                                  </div>
+                                </div>
+                              </div>
+                              <div className="flex items-center gap-2">
+                                <Button
+                                  type="button"
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() => toggleAllPermissions(modulo.id, !hasAnyPermission)}
+                                  className={`text-xs font-medium ${
+                                    hasAnyPermission 
+                                      ? 'text-red-600 hover:text-red-700 hover:bg-red-50' 
+                                      : 'text-green-600 hover:text-green-700 hover:bg-green-50'
+                                  }`}
+                                >
+                                  {hasAnyPermission ? 'Quitar todos' : 'Dar todos'}
+                                </Button>
+                              </div>
+                            </div>
+
+                            {/* Permisos del módulo */}
+                            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                              <label className="flex items-center gap-3 cursor-pointer p-3 rounded-lg border-2 hover:bg-green-50 hover:border-green-200 transition-all duration-200 group">
+                                <input
+                                  type="checkbox"
+                                  checked={permission.crear}
+                                  onChange={(e) => updatePermission(modulo.id, 'crear', e.target.checked)}
+                                  className="w-4 h-4 text-green-600 border-gray-300 rounded focus:ring-green-500"
+                                />
+                                <div className="flex items-center gap-2">
+                                  <span className="text-sm font-medium text-gray-700 group-hover:text-green-700">Crear</span>
+                                  <Check className={`w-4 h-4 ${permission.crear ? 'text-green-600' : 'text-gray-300'}`} />
+                                </div>
+                              </label>
+
+                              <label className="flex items-center gap-3 cursor-pointer p-3 rounded-lg border-2 hover:bg-blue-50 hover:border-blue-200 transition-all duration-200 group">
+                                <input
+                                  type="checkbox"
+                                  checked={permission.leer}
+                                  onChange={(e) => updatePermission(modulo.id, 'leer', e.target.checked)}
+                                  className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                                />
+                                <div className="flex items-center gap-2">
+                                  <span className="text-sm font-medium text-gray-700 group-hover:text-blue-700">Leer</span>
+                                  <Check className={`w-4 h-4 ${permission.leer ? 'text-blue-600' : 'text-gray-300'}`} />
+                                </div>
+                              </label>
+
+                              <label className="flex items-center gap-3 cursor-pointer p-3 rounded-lg border-2 hover:bg-yellow-50 hover:border-yellow-200 transition-all duration-200 group">
+                                <input
+                                  type="checkbox"
+                                  checked={permission.actualizar}
+                                  onChange={(e) => updatePermission(modulo.id, 'actualizar', e.target.checked)}
+                                  className="w-4 h-4 text-yellow-600 border-gray-300 rounded focus:ring-yellow-500"
+                                />
+                                <div className="flex items-center gap-2">
+                                  <span className="text-sm font-medium text-gray-700 group-hover:text-yellow-700">Actualizar</span>
+                                  <Check className={`w-4 h-4 ${permission.actualizar ? 'text-yellow-600' : 'text-gray-300'}`} />
+                                </div>
+                              </label>
+
+                              <label className="flex items-center gap-3 cursor-pointer p-3 rounded-lg border-2 hover:bg-red-50 hover:border-red-200 transition-all duration-200 group">
+                                <input
+                                  type="checkbox"
+                                  checked={permission.eliminar}
+                                  onChange={(e) => updatePermission(modulo.id, 'eliminar', e.target.checked)}
+                                  className="w-4 h-4 text-red-600 border-gray-300 rounded focus:ring-red-500"
+                                />
+                                <div className="flex items-center gap-2">
+                                  <span className="text-sm font-medium text-gray-700 group-hover:text-red-700">Eliminar</span>
+                                  <Check className={`w-4 h-4 ${permission.eliminar ? 'text-red-600' : 'text-gray-300'}`} />
+                                </div>
+                              </label>
+                            </div>
+
+                            {/* Resumen visual de permisos */}
+                            <div className="mt-4 flex items-center justify-between">
+                              <div className="flex items-center gap-2">
+                                <span className="text-xs text-gray-500">Estado actual:</span>
+                                {hasAnyPermission ? (
+                                  <div className="flex items-center gap-1">
+                                    <span className="text-xs bg-green-100 text-green-800 px-2 py-1 rounded">
+                                      {[permission.crear && 'C', permission.leer && 'L', permission.actualizar && 'A', permission.eliminar && 'E'].filter(Boolean).join(' + ')} configurado
+                                    </span>
+                                    <span className="text-xs text-green-600">({totalPermissions}/4)</span>
+                                  </div>
+                                ) : (
+                                  <span className="text-xs bg-gray-100 text-gray-600 px-2 py-1 rounded">
+                                    Sin permisos asignados
+                                  </span>
+                                )}
+                              </div>
+                              {hasAnyPermission && (
+                                <div className="flex items-center gap-1">
+                                  <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+                                  <span className="text-xs text-green-600 font-medium">Configurado</span>
+                                </div>
+                              )}
                             </div>
                           </div>
-                          <div className="flex items-center gap-2">
-                            <Button
-                              type="button"
-                              variant="outline"
-                              size="sm"
-                              onClick={() => toggleAllPermissions(modulo.id, !hasAnyPermission)}
-                              className={`text-xs ${hasAnyPermission ? 'text-red-600 hover:text-red-700' : 'text-green-600 hover:text-green-700'}`}
-                            >
-                              {hasAnyPermission ? 'Quitar todos' : 'Dar todos'}
-                            </Button>
-                          </div>
-                        </div>
-
-                        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                          <label className="flex items-center gap-2 cursor-pointer p-2 rounded border hover:bg-gray-50 transition-colors">
-                            <input
-                              type="checkbox"
-                              checked={permission.crear}
-                              onChange={(e) => updatePermission(modulo.id, 'crear', e.target.checked)}
-                              className="w-4 h-4 text-green-600 border-gray-300 rounded focus:ring-green-500"
-                            />
-                            <span className="text-sm font-medium text-gray-700">Crear</span>
-                            <Check className={`w-3 h-3 ${permission.crear ? 'text-green-600' : 'text-gray-300'}`} />
-                          </label>
-
-                          <label className="flex items-center gap-2 cursor-pointer p-2 rounded border hover:bg-gray-50 transition-colors">
-                            <input
-                              type="checkbox"
-                              checked={permission.leer}
-                              onChange={(e) => updatePermission(modulo.id, 'leer', e.target.checked)}
-                              className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
-                            />
-                            <span className="text-sm font-medium text-gray-700">Leer</span>
-                            <Check className={`w-3 h-3 ${permission.leer ? 'text-blue-600' : 'text-gray-300'}`} />
-                          </label>
-
-                          <label className="flex items-center gap-2 cursor-pointer p-2 rounded border hover:bg-gray-50 transition-colors">
-                            <input
-                              type="checkbox"
-                              checked={permission.actualizar}
-                              onChange={(e) => updatePermission(modulo.id, 'actualizar', e.target.checked)}
-                              className="w-4 h-4 text-yellow-600 border-gray-300 rounded focus:ring-yellow-500"
-                            />
-                            <span className="text-sm font-medium text-gray-700">Actualizar</span>
-                            <Check className={`w-3 h-3 ${permission.actualizar ? 'text-yellow-600' : 'text-gray-300'}`} />
-                          </label>
-
-                          <label className="flex items-center gap-2 cursor-pointer p-2 rounded border hover:bg-gray-50 transition-colors">
-                            <input
-                              type="checkbox"
-                              checked={permission.eliminar}
-                              onChange={(e) => updatePermission(modulo.id, 'eliminar', e.target.checked)}
-                              className="w-4 h-4 text-red-600 border-gray-300 rounded focus:ring-red-500"
-                            />
-                            <span className="text-sm font-medium text-gray-700">Eliminar</span>
-                            <Check className={`w-3 h-3 ${permission.eliminar ? 'text-red-600' : 'text-gray-300'}`} />
-                          </label>
-                        </div>
-
-                        {/* Indicador visual de permisos */}
-                        <div className="mt-3 flex items-center gap-2">
-                          <span className="text-xs text-gray-500">Estado:</span>
-                          {hasAnyPermission ? (
-                            <span className="text-xs bg-green-100 text-green-800 px-2 py-1 rounded">
-                              {[permission.crear && 'C', permission.leer && 'L', permission.actualizar && 'A', permission.eliminar && 'E'].filter(Boolean).join(' + ')} configurado
-                            </span>
-                          ) : (
-                            <span className="text-xs bg-gray-100 text-gray-600 px-2 py-1 rounded">
-                              Sin permisos
-                            </span>
-                          )}
-                        </div>
-                      </div>
-                    )
-                  }))}
+                        )
+                      })}
+                    </div>
+                  )}
 
                   {/* Resumen de cambios */}
                   {hasPermissionChanges && (
@@ -468,17 +580,55 @@ export function ModalEditRol({ open, onClose, rol, onSave }: ModalEditRolProps) 
                     </div>
                   )}
 
-                  <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mt-6">
+                  {/* Resumen general de permisos */}
+                  <div className="bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 rounded-lg p-4 mt-6">
+                    <div className="flex items-center justify-between mb-3">
+                      <h4 className="font-medium text-blue-900">📊 Resumen de Permisos</h4>
+                      <div className="text-sm text-blue-700">
+                        {Array.from(permissions.values()).filter(p => p.crear || p.leer || p.actualizar || p.eliminar).length} de {modulos.length} módulos configurados
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-sm">
+                      <div className="flex items-center gap-2">
+                        <div className="w-3 h-3 bg-green-500 rounded-full"></div>
+                        <span className="text-blue-800">
+                          Crear: {Array.from(permissions.values()).filter(p => p.crear).length}
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <div className="w-3 h-3 bg-blue-500 rounded-full"></div>
+                        <span className="text-blue-800">
+                          Leer: {Array.from(permissions.values()).filter(p => p.leer).length}
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <div className="w-3 h-3 bg-yellow-500 rounded-full"></div>
+                        <span className="text-blue-800">
+                          Actualizar: {Array.from(permissions.values()).filter(p => p.actualizar).length}
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <div className="w-3 h-3 bg-red-500 rounded-full"></div>
+                        <span className="text-blue-800">
+                          Eliminar: {Array.from(permissions.values()).filter(p => p.eliminar).length}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mt-4">
                     <h4 className="font-medium text-blue-900 mb-2">💡 Consejos de Uso</h4>
                     <ul className="text-sm text-blue-800 space-y-1">
-                      <li>• <strong>Crear:</strong> Permite agregar nuevos elementos</li>
-                      <li>• <strong>Leer:</strong> Permite visualizar información</li>
+                      <li>• <strong>Crear:</strong> Permite agregar nuevos elementos al sistema</li>
+                      <li>• <strong>Leer:</strong> Permite visualizar y consultar información</li>
                       <li>• <strong>Actualizar:</strong> Permite modificar elementos existentes</li>
-                      <li>• <strong>Eliminar:</strong> Permite borrar elementos</li>
+                      <li>• <strong>Eliminar:</strong> Permite borrar elementos del sistema</li>
                     </ul>
-                    <p className="text-xs text-blue-600 mt-2">
-                      💡 Usa "Dar todos" / "Quitar todos" para cambios masivos en un módulo
-                    </p>
+                    <div className="mt-3 p-3 bg-blue-100 rounded-lg">
+                      <p className="text-xs text-blue-700">
+                        💡 <strong>Tip:</strong> Usa los botones "Dar todos" / "Quitar todos" para cambios masivos en un módulo específico
+                      </p>
+                    </div>
                   </div>
                 </div>
               )}
