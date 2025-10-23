@@ -2,8 +2,8 @@
 export const API_CONFIG = {
   // Base URL: En desarrollo usa proxy, en producción usa variable de entorno
   BASE_URL: import.meta.env.DEV 
-    ? 'http://192.168.0.12:3000'  // En desarrollo, usar IP del servidor
-    : (import.meta.env.VITE_API_BASE_URL || 'http://192.168.0.12:3000'),
+    ? '/api'  // En desarrollo, usar proxy de Vite
+    : (import.meta.env.VITE_API_BASE_URL || 'http://localhost:3000'),
   
   // Endpoints
   ENDPOINTS: {
