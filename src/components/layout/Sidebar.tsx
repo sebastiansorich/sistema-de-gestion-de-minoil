@@ -272,7 +272,7 @@ export default function Sidebar() {
 				return
 			}
 			
-			// Usar el nuevo endpoint jerárquico del sidebar con usuario específico
+			// Usar el endpoint jerárquico del sidebar con usuario específico
 			const data = await modulosService.getSidebarModules(user.id)
 			
 					// Filtrar solo módulos activos (mostrar todos los módulos activos)

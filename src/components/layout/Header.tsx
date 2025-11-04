@@ -4,22 +4,41 @@ import { useAuth } from "../../contexts/AuthContext"
 import { useLocation } from "react-router-dom"
 import Breadcrumb from "../ui/navigation/Breadcrumb"
 import { ModalChangePassword } from "../ui/modals"
+import { modulosService, type Modulo } from "../../services"
 
-// Mapeo de rutas a títulos dinámicos
-const getPageTitle = (pathname: string): string => {
+// Función para obtener título dinámico desde los módulos
+const getPageTitle = (pathname: string, modulos: any[] = []): string => {
+  // Buscar en los módulos y submódulos
+  for (const modulo of modulos) {
+    // Verificar si la ruta coincide con el módulo principal
+    if (modulo.ruta === pathname) {
+      return modulo.nombre
+    }
+    
+    // Verificar en los submódulos
+    if (modulo.submodulos) {
+      for (const submodulo of modulo.submodulos) {
+        if (submodulo.ruta === pathname) {
+          return submodulo.nombre
+        }
+      }
+    }
+  }
+  
+  // Fallback a mapeo estático para rutas no encontradas
   const routeTitles: Record<string, string> = {
     '/': 'MINOIL BPMS',
     '/usuarios': 'Gestión de Usuarios',
     '/usuarios/roles': 'Roles y Permisos',
-    // Removed route for deleted Cargos component
+    '/usuarios/modulos': 'Gestión de Módulos',
     '/salidas/ingresar': 'Ingresar Salida',
     '/salidas/gestionar': 'Gestionar Salidas',
     '/marketing/mercaderistas': 'Mercaderistas',
     '/marketing/reportes-sala': 'Reportes por Sala',
     '/rrhh/planilla-comisiones': 'Planilla de Comisiones',
     '/rrhh/vacaciones': 'Gestión de Vacaciones',
-    '/Bendita/choperas': 'Gestión de Choperas',
-    '/Bendita/mantenimiento': 'Gestión de Mantenimiento',
+    '/bendita/choperas': 'Gestión de Choperas',
+    '/bendita/mantenimientos': 'Gestión de Mantenimientos',
   }
   
   return routeTitles[pathname] || 'MINOIL S.A'
@@ -29,6 +48,7 @@ export default function Header() {
   const [open, setOpen] = useState(false)
   const [showChangePasswordModal, setShowChangePasswordModal] = useState(false)
   const [empleadoInfo, setEmpleadoInfo] = useState<{sede: string, area: string, cargo: string} | null>(null)
+  const [modulos, setModulos] = useState<Modulo[]>([])
   const menuRef = useRef<HTMLDivElement>(null)
   const { logout, user } = useAuth()
   const location = useLocation()
@@ -110,6 +130,22 @@ export default function Header() {
     }
   }
 
+  // Cargar módulos para títulos dinámicos
+  useEffect(() => {
+    const loadModulos = async () => {
+      try {
+        const data = await modulosService.getSidebarModules(user.id)
+        setModulos(data)
+      } catch (error) {
+        console.error('Error cargando módulos para header:', error)
+      }
+    }
+    
+    if (user?.id) {
+      loadModulos()
+    }
+  }, [user?.id])
+
   // Cargar información del empleado cuando se monta el componente
   useEffect(() => {
     console.log('🔍 Header - useEffect ejecutado')
@@ -167,7 +203,7 @@ export default function Header() {
       <div className="flex items-center justify-between">
         <div className="flex-1 flex justify-center md:justify-start">
           <h1 className="text-xl font-bold text-center w-full md:w-auto">
-            {getPageTitle(location.pathname)}
+            {getPageTitle(location.pathname, modulos)}
           </h1>
         </div>
         <div className="relative flex-shrink-0 flex items-center gap-3" ref={menuRef}>

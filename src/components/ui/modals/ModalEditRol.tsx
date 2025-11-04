@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react'
-import { X, Loader2, AlertCircle, Shield, FileText, Package, Check, Settings, Save } from 'lucide-react'
+import { X, Loader2, AlertCircle, Shield, FileText, Package, Check, Settings, Save, ChevronDown, ChevronRight, Users, BarChart2, Coffee, UserCog } from 'lucide-react'
 import { rolesService, modulosService, permisosService, type Rol, type UpdateRolRequest, type Modulo, type PermisoRequest, type CreatePermisoRequest } from '../../../services'
 import { Button } from '../base/button'
 
@@ -22,6 +22,13 @@ export function ModalEditRol({ open, onClose, rol, onSave }: ModalEditRolProps) 
   // Estado para manejar cambios en permisos
   const [permissions, setPermissions] = useState<Map<number, PermisoRequest>>(new Map())
   const [hasPermissionChanges, setHasPermissionChanges] = useState(false)
+  
+  // Estado para manejar dropdowns de módulos padre
+  const [expandedModules, setExpandedModules] = useState<Set<number>>(new Set())
+  
+  // Estado para organizar módulos jerárquicamente
+  const [parentModules, setParentModules] = useState<Modulo[]>([])
+  const [childModules, setChildModules] = useState<Map<number, Modulo[]>>(new Map())
 
   // Resetear formulario cuando cambia el rol
   useEffect(() => {
@@ -39,6 +46,74 @@ export function ModalEditRol({ open, onClose, rol, onSave }: ModalEditRolProps) 
     setActiveTab('basic')
     setHasPermissionChanges(false)
   }, [rol])
+
+  // Función para organizar módulos jerárquicamente
+  const organizeModulesHierarchically = (allModules: Modulo[]) => {
+    const parents: Modulo[] = []
+    const children: Map<number, Modulo[]> = new Map()
+    
+    allModules.forEach(modulo => {
+      if (modulo.nivel === 1) {
+        // Es un módulo padre
+        parents.push(modulo)
+        children.set(modulo.id, [])
+      } else if (modulo.padreId) {
+        // Es un submódulo
+        if (!children.has(modulo.padreId)) {
+          children.set(modulo.padreId, [])
+        }
+        children.get(modulo.padreId)!.push(modulo)
+      }
+    })
+    
+    // Ordenar padres por orden
+    parents.sort((a, b) => a.orden - b.orden)
+    
+    // Ordenar hijos por orden
+    children.forEach((childList) => {
+      childList.sort((a, b) => a.orden - b.orden)
+    })
+    
+    setParentModules(parents)
+    setChildModules(children)
+    
+    console.log('📊 Módulos organizados jerárquicamente:', {
+      padres: parents.length,
+      hijos: Array.from(children.values()).flat().length,
+      estructura: parents.map(p => ({
+        padre: p.nombre,
+        hijos: children.get(p.id)?.length || 0
+      }))
+    })
+  }
+
+  // Función para alternar dropdown de módulo padre
+  const toggleModuleDropdown = (moduleId: number) => {
+    setExpandedModules(prev => {
+      const newSet = new Set(prev)
+      if (newSet.has(moduleId)) {
+        newSet.delete(moduleId)
+      } else {
+        newSet.add(moduleId)
+      }
+      return newSet
+    })
+  }
+
+  // Función para obtener icono del módulo
+  const getModuleIcon = (modulo: Modulo) => {
+    const iconMap: { [key: string]: React.ComponentType<any> } = {
+      'users': Users,
+      'user-cog': UserCog,
+      'trending-up': BarChart2,
+      'coffee': Coffee,
+      'package': Package,
+      'settings': Settings
+    }
+    
+    const IconComponent = iconMap[modulo.icono || ''] || Package
+    return <IconComponent className="w-5 h-5" />
+  }
 
   const initializePermissions = async () => {
     if (!rol) return
@@ -70,6 +145,10 @@ export function ModalEditRol({ open, onClose, rol, onSave }: ModalEditRolProps) 
       
       setModulos(todosLosModulos) // ¡IMPORTANTE! Asignar los módulos al estado
       console.log(`✅ Módulos asignados al estado:`, todosLosModulos.length, 'módulos')
+      
+      // Organizar módulos jerárquicamente
+      organizeModulesHierarchically(todosLosModulos)
+      
       setIsLoadingModulos(false)
       
       // Cargar permisos específicos del rol
@@ -135,20 +214,6 @@ export function ModalEditRol({ open, onClose, rol, onSave }: ModalEditRolProps) 
     }
   }
 
-  const loadModulos = async () => {
-    try {
-      console.log('🔄 Cargando módulos para modal de editar rol...')
-      setIsLoadingModulos(true)
-      const data = await modulosService.getAll()
-      console.log('✅ Módulos cargados para modal:', data)
-      setModulos(data)
-    } catch (err) {
-      console.error('❌ Error cargando módulos:', err)
-      setError('Error al cargar módulos del sistema')
-    } finally {
-      setIsLoadingModulos(false)
-    }
-  }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -259,6 +324,61 @@ export function ModalEditRol({ open, onClose, rol, onSave }: ModalEditRolProps) 
     })
     
     setHasPermissionChanges(true)
+  }
+
+  // Función para dar todos los permisos a un módulo padre y sus submódulos
+  const toggleAllParentPermissions = (parentId: number, enable: boolean) => {
+    setPermissions(prev => {
+      const newMap = new Map(prev)
+      
+      // Aplicar al módulo padre
+      newMap.set(parentId, {
+        moduloId: parentId,
+        crear: enable,
+        leer: enable,
+        actualizar: enable,
+        eliminar: enable
+      })
+      
+      // Aplicar a todos los submódulos
+      const children = childModules.get(parentId) || []
+      children.forEach(child => {
+        newMap.set(child.id, {
+          moduloId: child.id,
+          crear: enable,
+          leer: enable,
+          actualizar: enable,
+          eliminar: enable
+        })
+      })
+      
+      return newMap
+    })
+    
+    setHasPermissionChanges(true)
+  }
+
+  // Función para verificar si un módulo padre tiene todos sus permisos y submódulos configurados
+  const getParentPermissionStatus = (parentId: number) => {
+    const parentPermission = getModuloPermission(parentId)
+    const children = childModules.get(parentId) || []
+    
+    const parentHasAll = parentPermission.crear && parentPermission.leer && parentPermission.actualizar && parentPermission.eliminar
+    const childrenHaveAll = children.every(child => {
+      const childPermission = getModuloPermission(child.id)
+      return childPermission.crear && childPermission.leer && childPermission.actualizar && childPermission.eliminar
+    })
+    
+    return {
+      parentHasAll,
+      childrenHaveAll,
+      allConfigured: parentHasAll && childrenHaveAll,
+      totalChildren: children.length,
+      configuredChildren: children.filter(child => {
+        const childPermission = getModuloPermission(child.id)
+        return childPermission.crear || childPermission.leer || childPermission.actualizar || childPermission.eliminar
+      }).length
+    }
   }
 
   if (!open || !rol) return null
@@ -429,141 +549,310 @@ export function ModalEditRol({ open, onClose, rol, onSave }: ModalEditRolProps) 
                     </div>
                   ) : (
                     <div className="space-y-4">
-                      {modulos.map((modulo) => {
-                        const permission = getModuloPermission(modulo.id)
-                        const hasAnyPermission = permission.crear || permission.leer || permission.actualizar || permission.eliminar
-                        const totalPermissions = [permission.crear, permission.leer, permission.actualizar, permission.eliminar].filter(Boolean).length
+                      {parentModules.map((parentModule) => {
+                        const parentPermission = getModuloPermission(parentModule.id)
+                        const parentHasAnyPermission = parentPermission.crear || parentPermission.leer || parentPermission.actualizar || parentPermission.eliminar
+                        const parentTotalPermissions = [parentPermission.crear, parentPermission.leer, parentPermission.actualizar, parentPermission.eliminar].filter(Boolean).length
+                        const isExpanded = expandedModules.has(parentModule.id)
+                        const children = childModules.get(parentModule.id) || []
+                        const parentStatus = getParentPermissionStatus(parentModule.id)
                         
                         return (
-                          <div key={modulo.id} className="border rounded-lg p-5 bg-white hover:shadow-md transition-all duration-200">
-                            {/* Header del módulo */}
-                            <div className="flex items-center justify-between mb-4">
-                              <div className="flex items-center gap-3 flex-1">
-                                <div className="p-2 bg-blue-50 rounded-lg">
-                                  <Package className="w-5 h-5 text-blue-600" />
-                                </div>
-                                <div className="flex-1">
-                                  <div className="flex items-center gap-2 mb-1">
-                                    <h4 className="font-semibold text-gray-900">{modulo.nombre}</h4>
-                                    {hasAnyPermission && (
-                                      <span className="bg-green-100 text-green-800 text-xs px-2 py-1 rounded-full">
-                                        {totalPermissions}/4 permisos
-                                      </span>
-                                    )}
+                          <div key={parentModule.id} className="border rounded-lg bg-white hover:shadow-md transition-all duration-200">
+                            {/* Header del módulo padre */}
+                            <div className="p-5">
+                              <div className="flex items-center justify-between mb-4">
+                                <div className="flex items-center gap-3 flex-1">
+                                  <button
+                                    onClick={() => toggleModuleDropdown(parentModule.id)}
+                                    className="p-2 bg-blue-50 rounded-lg hover:bg-blue-100 transition-colors"
+                                  >
+                                    {isExpanded ? <ChevronDown className="w-5 h-5 text-blue-600" /> : <ChevronRight className="w-5 h-5 text-blue-600" />}
+                                  </button>
+                                  <div className="p-2 bg-blue-50 rounded-lg">
+                                    {getModuleIcon(parentModule)}
                                   </div>
-                                  <p className="text-sm text-gray-600 mb-2">{modulo.descripcion}</p>
+                                  <div className="flex-1">
+                                    <div className="flex items-center gap-2 mb-1">
+                                      <h4 className="font-semibold text-gray-900">{parentModule.nombre}</h4>
+                                      {parentStatus.allConfigured && (
+                                        <span className="bg-green-100 text-green-800 text-xs px-2 py-1 rounded-full">
+                                          {parentStatus.totalChildren + 1} módulos configurados
+                                        </span>
+                                      )}
+                                      {parentHasAnyPermission && !parentStatus.allConfigured && (
+                                        <span className="bg-yellow-100 text-yellow-800 text-xs px-2 py-1 rounded-full">
+                                          {parentTotalPermissions}/4 permisos padre
+                                        </span>
+                                      )}
+                                    </div>
+                                    <p className="text-sm text-gray-600 mb-2">{parentModule.descripcion}</p>
+                                    <div className="flex items-center gap-2">
+                                      <span className="text-xs text-gray-500 bg-gray-100 px-2 py-1 rounded">
+                                        {parentModule.ruta}
+                                      </span>
+                                      {parentModule.activo ? (
+                                        <span className="text-xs bg-green-100 text-green-800 px-2 py-1 rounded">
+                                          Activo
+                                        </span>
+                                      ) : (
+                                        <span className="text-xs bg-red-100 text-red-800 px-2 py-1 rounded">
+                                          Inactivo
+                                        </span>
+                                      )}
+                                      <span className="text-xs bg-blue-100 text-blue-700 px-2 py-1 rounded">
+                                        {children.length} submódulos
+                                      </span>
+                                    </div>
+                                  </div>
+                                </div>
+                                <div className="flex items-center gap-2">
+                                  <Button
+                                    type="button"
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={() => toggleAllParentPermissions(parentModule.id, !parentStatus.allConfigured)}
+                                    className={`text-xs font-medium ${
+                                      parentStatus.allConfigured 
+                                        ? 'text-red-600 hover:text-red-700 hover:bg-red-50' 
+                                        : 'text-green-600 hover:text-green-700 hover:bg-green-50'
+                                    }`}
+                                  >
+                                    {parentStatus.allConfigured ? 'Quitar todos' : 'Dar todos'}
+                                  </Button>
+                                </div>
+                              </div>
+
+                              {/* Permisos del módulo padre */}
+                              <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
+                                <label className="flex items-center gap-3 cursor-pointer p-3 rounded-lg border-2 hover:bg-green-50 hover:border-green-200 transition-all duration-200 group">
+                                  <input
+                                    type="checkbox"
+                                    checked={parentPermission.crear}
+                                    onChange={(e) => updatePermission(parentModule.id, 'crear', e.target.checked)}
+                                    className="w-4 h-4 text-green-600 border-gray-300 rounded focus:ring-green-500"
+                                  />
                                   <div className="flex items-center gap-2">
-                                    <span className="text-xs text-gray-500 bg-gray-100 px-2 py-1 rounded">
-                                      {modulo.ruta}
-                                    </span>
-                                    {modulo.activo ? (
+                                    <span className="text-sm font-medium text-gray-700 group-hover:text-green-700">Crear</span>
+                                    <Check className={`w-4 h-4 ${parentPermission.crear ? 'text-green-600' : 'text-gray-300'}`} />
+                                  </div>
+                                </label>
+
+                                <label className="flex items-center gap-3 cursor-pointer p-3 rounded-lg border-2 hover:bg-blue-50 hover:border-blue-200 transition-all duration-200 group">
+                                  <input
+                                    type="checkbox"
+                                    checked={parentPermission.leer}
+                                    onChange={(e) => updatePermission(parentModule.id, 'leer', e.target.checked)}
+                                    className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                                  />
+                                  <div className="flex items-center gap-2">
+                                    <span className="text-sm font-medium text-gray-700 group-hover:text-blue-700">Leer</span>
+                                    <Check className={`w-4 h-4 ${parentPermission.leer ? 'text-blue-600' : 'text-gray-300'}`} />
+                                  </div>
+                                </label>
+
+                                <label className="flex items-center gap-3 cursor-pointer p-3 rounded-lg border-2 hover:bg-yellow-50 hover:border-yellow-200 transition-all duration-200 group">
+                                  <input
+                                    type="checkbox"
+                                    checked={parentPermission.actualizar}
+                                    onChange={(e) => updatePermission(parentModule.id, 'actualizar', e.target.checked)}
+                                    className="w-4 h-4 text-yellow-600 border-gray-300 rounded focus:ring-yellow-500"
+                                  />
+                                  <div className="flex items-center gap-2">
+                                    <span className="text-sm font-medium text-gray-700 group-hover:text-yellow-700">Actualizar</span>
+                                    <Check className={`w-4 h-4 ${parentPermission.actualizar ? 'text-yellow-600' : 'text-gray-300'}`} />
+                                  </div>
+                                </label>
+
+                                <label className="flex items-center gap-3 cursor-pointer p-3 rounded-lg border-2 hover:bg-red-50 hover:border-red-200 transition-all duration-200 group">
+                                  <input
+                                    type="checkbox"
+                                    checked={parentPermission.eliminar}
+                                    onChange={(e) => updatePermission(parentModule.id, 'eliminar', e.target.checked)}
+                                    className="w-4 h-4 text-red-600 border-gray-300 rounded focus:ring-red-500"
+                                  />
+                                  <div className="flex items-center gap-2">
+                                    <span className="text-sm font-medium text-gray-700 group-hover:text-red-700">Eliminar</span>
+                                    <Check className={`w-4 h-4 ${parentPermission.eliminar ? 'text-red-600' : 'text-gray-300'}`} />
+                                  </div>
+                                </label>
+                              </div>
+
+                              {/* Resumen del estado del módulo padre */}
+                              <div className="flex items-center justify-between">
+                                <div className="flex items-center gap-2">
+                                  <span className="text-xs text-gray-500">Estado actual:</span>
+                                  {parentStatus.allConfigured ? (
+                                    <div className="flex items-center gap-1">
                                       <span className="text-xs bg-green-100 text-green-800 px-2 py-1 rounded">
-                                        Activo
+                                        Padre + {parentStatus.totalChildren} submódulos configurados
                                       </span>
-                                    ) : (
-                                      <span className="text-xs bg-red-100 text-red-800 px-2 py-1 rounded">
-                                        Inactivo
-                                      </span>
-                                    )}
-                                  </div>
-                                </div>
-                              </div>
-                              <div className="flex items-center gap-2">
-                                <Button
-                                  type="button"
-                                  variant="outline"
-                                  size="sm"
-                                  onClick={() => toggleAllPermissions(modulo.id, !hasAnyPermission)}
-                                  className={`text-xs font-medium ${
-                                    hasAnyPermission 
-                                      ? 'text-red-600 hover:text-red-700 hover:bg-red-50' 
-                                      : 'text-green-600 hover:text-green-700 hover:bg-green-50'
-                                  }`}
-                                >
-                                  {hasAnyPermission ? 'Quitar todos' : 'Dar todos'}
-                                </Button>
-                              </div>
-                            </div>
-
-                            {/* Permisos del módulo */}
-                            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                              <label className="flex items-center gap-3 cursor-pointer p-3 rounded-lg border-2 hover:bg-green-50 hover:border-green-200 transition-all duration-200 group">
-                                <input
-                                  type="checkbox"
-                                  checked={permission.crear}
-                                  onChange={(e) => updatePermission(modulo.id, 'crear', e.target.checked)}
-                                  className="w-4 h-4 text-green-600 border-gray-300 rounded focus:ring-green-500"
-                                />
-                                <div className="flex items-center gap-2">
-                                  <span className="text-sm font-medium text-gray-700 group-hover:text-green-700">Crear</span>
-                                  <Check className={`w-4 h-4 ${permission.crear ? 'text-green-600' : 'text-gray-300'}`} />
-                                </div>
-                              </label>
-
-                              <label className="flex items-center gap-3 cursor-pointer p-3 rounded-lg border-2 hover:bg-blue-50 hover:border-blue-200 transition-all duration-200 group">
-                                <input
-                                  type="checkbox"
-                                  checked={permission.leer}
-                                  onChange={(e) => updatePermission(modulo.id, 'leer', e.target.checked)}
-                                  className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
-                                />
-                                <div className="flex items-center gap-2">
-                                  <span className="text-sm font-medium text-gray-700 group-hover:text-blue-700">Leer</span>
-                                  <Check className={`w-4 h-4 ${permission.leer ? 'text-blue-600' : 'text-gray-300'}`} />
-                                </div>
-                              </label>
-
-                              <label className="flex items-center gap-3 cursor-pointer p-3 rounded-lg border-2 hover:bg-yellow-50 hover:border-yellow-200 transition-all duration-200 group">
-                                <input
-                                  type="checkbox"
-                                  checked={permission.actualizar}
-                                  onChange={(e) => updatePermission(modulo.id, 'actualizar', e.target.checked)}
-                                  className="w-4 h-4 text-yellow-600 border-gray-300 rounded focus:ring-yellow-500"
-                                />
-                                <div className="flex items-center gap-2">
-                                  <span className="text-sm font-medium text-gray-700 group-hover:text-yellow-700">Actualizar</span>
-                                  <Check className={`w-4 h-4 ${permission.actualizar ? 'text-yellow-600' : 'text-gray-300'}`} />
-                                </div>
-                              </label>
-
-                              <label className="flex items-center gap-3 cursor-pointer p-3 rounded-lg border-2 hover:bg-red-50 hover:border-red-200 transition-all duration-200 group">
-                                <input
-                                  type="checkbox"
-                                  checked={permission.eliminar}
-                                  onChange={(e) => updatePermission(modulo.id, 'eliminar', e.target.checked)}
-                                  className="w-4 h-4 text-red-600 border-gray-300 rounded focus:ring-red-500"
-                                />
-                                <div className="flex items-center gap-2">
-                                  <span className="text-sm font-medium text-gray-700 group-hover:text-red-700">Eliminar</span>
-                                  <Check className={`w-4 h-4 ${permission.eliminar ? 'text-red-600' : 'text-gray-300'}`} />
-                                </div>
-                              </label>
-                            </div>
-
-                            {/* Resumen visual de permisos */}
-                            <div className="mt-4 flex items-center justify-between">
-                              <div className="flex items-center gap-2">
-                                <span className="text-xs text-gray-500">Estado actual:</span>
-                                {hasAnyPermission ? (
-                                  <div className="flex items-center gap-1">
-                                    <span className="text-xs bg-green-100 text-green-800 px-2 py-1 rounded">
-                                      {[permission.crear && 'C', permission.leer && 'L', permission.actualizar && 'A', permission.eliminar && 'E'].filter(Boolean).join(' + ')} configurado
+                                      <span className="text-xs text-green-600">({parentStatus.totalChildren + 1} módulos)</span>
+                                    </div>
+                                  ) : (
+                                    <span className="text-xs bg-gray-100 text-gray-600 px-2 py-1 rounded">
+                                      {parentStatus.configuredChildren}/{parentStatus.totalChildren} submódulos configurados
                                     </span>
-                                    <span className="text-xs text-green-600">({totalPermissions}/4)</span>
+                                  )}
+                                </div>
+                                {parentStatus.allConfigured && (
+                                  <div className="flex items-center gap-1">
+                                    <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+                                    <span className="text-xs text-green-600 font-medium">Completamente configurado</span>
                                   </div>
-                                ) : (
-                                  <span className="text-xs bg-gray-100 text-gray-600 px-2 py-1 rounded">
-                                    Sin permisos asignados
-                                  </span>
                                 )}
                               </div>
-                              {hasAnyPermission && (
-                                <div className="flex items-center gap-1">
-                                  <div className="w-2 h-2 bg-green-500 rounded-full"></div>
-                                  <span className="text-xs text-green-600 font-medium">Configurado</span>
-                                </div>
-                              )}
                             </div>
+
+                            {/* Submódulos (solo si está expandido) */}
+                            {isExpanded && children.length > 0 && (
+                              <div className="border-t bg-gray-50 p-4">
+                                <h5 className="text-sm font-medium text-gray-700 mb-3 flex items-center gap-2">
+                                  <ChevronDown className="w-4 h-4" />
+                                  Submódulos ({children.length})
+                                </h5>
+                                <div className="space-y-3">
+                                  {children.map((childModule) => {
+                                    const childPermission = getModuloPermission(childModule.id)
+                                    const childHasAnyPermission = childPermission.crear || childPermission.leer || childPermission.actualizar || childPermission.eliminar
+                                    const childTotalPermissions = [childPermission.crear, childPermission.leer, childPermission.actualizar, childPermission.eliminar].filter(Boolean).length
+                                    
+                                    return (
+                                      <div key={childModule.id} className="bg-white border rounded-lg p-4 ml-4">
+                                        {/* Header del submódulo */}
+                                        <div className="flex items-center justify-between mb-3">
+                                          <div className="flex items-center gap-3 flex-1">
+                                            <div className="p-2 bg-blue-100 rounded-lg">
+                                              {getModuleIcon(childModule)}
+                                            </div>
+                                            <div className="flex-1">
+                                              <div className="flex items-center gap-2 mb-1">
+                                                <h6 className="font-medium text-blue-900">{childModule.nombre}</h6>
+                                                {childHasAnyPermission && (
+                                                  <span className="bg-green-100 text-green-800 text-xs px-2 py-1 rounded-full">
+                                                    {childTotalPermissions}/4 permisos
+                                                  </span>
+                                                )}
+                                              </div>
+                                              <p className="text-sm text-blue-700 mb-1">{childModule.descripcion}</p>
+                                              <div className="flex items-center gap-2">
+                                                <span className="text-xs text-blue-600 bg-blue-100 px-2 py-1 rounded">
+                                                  {childModule.ruta}
+                                                </span>
+                                                {childModule.activo ? (
+                                                  <span className="text-xs bg-green-100 text-green-800 px-2 py-1 rounded">
+                                                    Activo
+                                                  </span>
+                                                ) : (
+                                                  <span className="text-xs bg-red-100 text-red-800 px-2 py-1 rounded">
+                                                    Inactivo
+                                                  </span>
+                                                )}
+                                              </div>
+                                            </div>
+                                          </div>
+                                          <div className="flex items-center gap-2">
+                                            <Button
+                                              type="button"
+                                              variant="outline"
+                                              size="sm"
+                                              onClick={() => toggleAllPermissions(childModule.id, !childHasAnyPermission)}
+                                              className={`text-xs font-medium ${
+                                                childHasAnyPermission 
+                                                  ? 'text-red-600 hover:text-red-700 hover:bg-red-50' 
+                                                  : 'text-green-600 hover:text-green-700 hover:bg-green-50'
+                                              }`}
+                                            >
+                                              {childHasAnyPermission ? 'Quitar todos' : 'Dar todos'}
+                                            </Button>
+                                          </div>
+                                        </div>
+
+                                        {/* Permisos del submódulo */}
+                                        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                                          <label className="flex items-center gap-3 cursor-pointer p-2 rounded-lg border-2 hover:bg-green-50 hover:border-green-200 transition-all duration-200 group">
+                                            <input
+                                              type="checkbox"
+                                              checked={childPermission.crear}
+                                              onChange={(e) => updatePermission(childModule.id, 'crear', e.target.checked)}
+                                              className="w-4 h-4 text-green-600 border-gray-300 rounded focus:ring-green-500"
+                                            />
+                                            <div className="flex items-center gap-2">
+                                              <span className="text-sm font-medium text-gray-700 group-hover:text-green-700">Crear</span>
+                                              <Check className={`w-4 h-4 ${childPermission.crear ? 'text-green-600' : 'text-gray-300'}`} />
+                                            </div>
+                                          </label>
+
+                                          <label className="flex items-center gap-3 cursor-pointer p-2 rounded-lg border-2 hover:bg-blue-50 hover:border-blue-200 transition-all duration-200 group">
+                                            <input
+                                              type="checkbox"
+                                              checked={childPermission.leer}
+                                              onChange={(e) => updatePermission(childModule.id, 'leer', e.target.checked)}
+                                              className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                                            />
+                                            <div className="flex items-center gap-2">
+                                              <span className="text-sm font-medium text-gray-700 group-hover:text-blue-700">Leer</span>
+                                              <Check className={`w-4 h-4 ${childPermission.leer ? 'text-blue-600' : 'text-gray-300'}`} />
+                                            </div>
+                                          </label>
+
+                                          <label className="flex items-center gap-3 cursor-pointer p-2 rounded-lg border-2 hover:bg-yellow-50 hover:border-yellow-200 transition-all duration-200 group">
+                                            <input
+                                              type="checkbox"
+                                              checked={childPermission.actualizar}
+                                              onChange={(e) => updatePermission(childModule.id, 'actualizar', e.target.checked)}
+                                              className="w-4 h-4 text-yellow-600 border-gray-300 rounded focus:ring-yellow-500"
+                                            />
+                                            <div className="flex items-center gap-2">
+                                              <span className="text-sm font-medium text-gray-700 group-hover:text-yellow-700">Actualizar</span>
+                                              <Check className={`w-4 h-4 ${childPermission.actualizar ? 'text-yellow-600' : 'text-gray-300'}`} />
+                                            </div>
+                                          </label>
+
+                                          <label className="flex items-center gap-3 cursor-pointer p-2 rounded-lg border-2 hover:bg-red-50 hover:border-red-200 transition-all duration-200 group">
+                                            <input
+                                              type="checkbox"
+                                              checked={childPermission.eliminar}
+                                              onChange={(e) => updatePermission(childModule.id, 'eliminar', e.target.checked)}
+                                              className="w-4 h-4 text-red-600 border-gray-300 rounded focus:ring-red-500"
+                                            />
+                                            <div className="flex items-center gap-2">
+                                              <span className="text-sm font-medium text-gray-700 group-hover:text-red-700">Eliminar</span>
+                                              <Check className={`w-4 h-4 ${childPermission.eliminar ? 'text-red-600' : 'text-gray-300'}`} />
+                                            </div>
+                                          </label>
+                                        </div>
+
+                                        {/* Resumen del estado del submódulo */}
+                                        <div className="mt-3 flex items-center justify-between">
+                                          <div className="flex items-center gap-2">
+                                            <span className="text-xs text-gray-500">Estado actual:</span>
+                                            {childHasAnyPermission ? (
+                                              <div className="flex items-center gap-1">
+                                                <span className="text-xs bg-green-100 text-green-800 px-2 py-1 rounded">
+                                                  {[childPermission.crear && 'C', childPermission.leer && 'L', childPermission.actualizar && 'A', childPermission.eliminar && 'E'].filter(Boolean).join(' + ')} configurado
+                                                </span>
+                                                <span className="text-xs text-green-600">({childTotalPermissions}/4)</span>
+                                              </div>
+                                            ) : (
+                                              <span className="text-xs bg-gray-100 text-gray-600 px-2 py-1 rounded">
+                                                Sin permisos asignados
+                                              </span>
+                                            )}
+                                          </div>
+                                          {childHasAnyPermission && (
+                                            <div className="flex items-center gap-1">
+                                              <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+                                              <span className="text-xs text-green-600 font-medium">Configurado</span>
+                                            </div>
+                                          )}
+                                        </div>
+                                      </div>
+                                    )
+                                  })}
+                                </div>
+                              </div>
+                            )}
                           </div>
                         )
                       })}

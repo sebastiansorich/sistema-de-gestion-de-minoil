@@ -82,6 +82,56 @@ class ModulosService {
     }
   }
 
+  // Nuevo método para obtener todos los módulos organizados jerárquicamente
+  async getAllHierarchical(): Promise<Modulo[]> {
+    try {
+      console.log('🔄 Cargando módulos jerárquicos desde /modulos/sidebar...')
+      const response = await fetch(buildUrl('/modulos/sidebar'), {
+        method: 'GET',
+        headers: API_CONFIG.DEFAULT_HEADERS
+      })
+
+      const data = await handleApiResponse(response)
+      
+      // La respuesta viene en formato { success: true, data: [...] }
+      const modules = Array.isArray(data) ? data : data.data || data.modulos || []
+      
+      // Aplanar la estructura jerárquica para mostrar todos los módulos
+      const allModules: Modulo[] = []
+      
+      modules.forEach((modulo: Modulo) => {
+        // Agregar el módulo padre
+        allModules.push(modulo)
+        
+        // Agregar los submódulos si existen
+        if (modulo.submodulos && modulo.submodulos.length > 0) {
+          modulo.submodulos.forEach((submodulo: Modulo) => {
+            allModules.push(submodulo)
+          })
+        }
+      })
+      
+      // Ordenar por nivel y luego por orden
+      allModules.sort((a, b) => {
+        if (a.nivel !== b.nivel) {
+          return a.nivel - b.nivel
+        }
+        return a.orden - b.orden
+      })
+      
+      console.log('✅ Módulos jerárquicos procesados:', {
+        total: allModules.length,
+        padres: modules.length,
+        hijos: allModules.length - modules.length
+      })
+      
+      return allModules
+    } catch (error) {
+      console.error('Error en modulosService.getAllHierarchical:', error)
+      throw error
+    }
+  }
+
   // Nuevo método para obtener estructura jerárquica del sidebar por usuario
   async getSidebarModules(usuarioId: number): Promise<Modulo[]> {
     try {
@@ -251,7 +301,7 @@ class ModulosService {
   async update(id: number, modulo: UpdateModuloRequest): Promise<Modulo> {
     try {
       const response = await fetch(buildUrl(`${API_CONFIG.ENDPOINTS.MODULOS}/${id}`), {
-        method: 'PUT',
+        method: 'PATCH',
         headers: API_CONFIG.DEFAULT_HEADERS,
         body: JSON.stringify(modulo)
       })

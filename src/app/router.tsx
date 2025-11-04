@@ -11,6 +11,7 @@ import PlanillaComisiones from "../features/rrhh/PlanillaComisiones";
 import Vacaciones from "../features/rrhh/Vacaciones";
 import Usuarios from "../features/usuarios/Usuarios";
 import RolesPermisos from "../features/usuarios/RolesPermisos";
+import Modulos from "../features/usuarios/Modulos";
 // Removed import for deleted Cargos component
 import Choperas from "../features/bendita/Choperas";
 import MantenimientosDashboard from "../features/bendita/MantenimientosDashboard";
@@ -102,6 +103,11 @@ export default function AppRouter() {
                 <Route path="/usuarios/usuarios" element={
                   <PrivateRoute permission={null}>
                     <Usuarios />
+                  </PrivateRoute>
+                } />
+                <Route path="/usuarios/modulos" element={
+                  <PrivateRoute permission={null}>
+                    <Modulos />
                   </PrivateRoute>
                 } />
                 <Route path="/bendita/choperas" element={<Choperas />} />
